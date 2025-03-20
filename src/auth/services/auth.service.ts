@@ -1,9 +1,9 @@
-import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
 import { JwtService } from '@nestjs/jwt'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { User } from '../entities/user.entity'
-import { ILoginDto, IRegisterDto, IAuthResponse } from '@/common/interfaces/auth.interface'
+import { ILoginDto, IRegisterDto, IAuthResponse } from '../../common/interfaces/auth.interface'
 import * as bcrypt from 'bcrypt'
 
 @Injectable()
@@ -103,6 +103,6 @@ export class AuthService {
       sub: user.id,
       email: user.email,
       name: user.name,
-    })
+    }) as string
   }
 }

@@ -1,8 +1,7 @@
 import { DataSource, DataSourceOptions } from 'typeorm'
 import { config } from 'dotenv'
-import { User } from '../entities/user.entity'
+import { User } from '../auth/entities/user.entity'
 
-// eslint-disable-next-line @typescript-eslint/no-unsafe-call
 config()
 
 type DatabaseConfig = {
@@ -31,5 +30,4 @@ const options: DataSourceOptions = {
   migrationsRun: process.env.TYPEORM_MIGRATIONS_RUN === 'true',
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call
 export const AppDataSource = new DataSource(options)
