@@ -2,14 +2,13 @@ import { NestFactory } from '@nestjs/core'
 import { AppModule } from './app.module'
 import { config } from 'dotenv'
 import { AppDataSource } from './config/typeorm.config'
-import { DataSource } from 'typeorm'
+import { ValidationPipe } from '@nestjs/common'
 
-// eslint-disable-next-line @typescript-eslint/no-unsafe-call
 config()
 
 async function bootstrap() {
   try {
-    await (AppDataSource as DataSource).initialize()
+    await AppDataSource.initialize()
     console.log('Data Source has been initialized!')
   } catch (error: unknown) {
     if (error instanceof Error) {
@@ -21,6 +20,13 @@ async function bootstrap() {
   }
 
   const app = await NestFactory.create(AppModule)
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+      forbidNonWhitelisted: true,
+    }),
+  )
   const port = process.env.PORT || 3000
 
   await app.listen(port)
