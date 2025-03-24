@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common'
+import { Injectable, UnauthorizedException } from '@nestjs/common'
 import { JwtService } from '@nestjs/jwt'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
@@ -20,13 +20,13 @@ export class AuthService {
     })
 
     if (existingUser) {
-      return {
+      throw new UnauthorizedException({
         success: false,
         error: {
-          message: 'Email already exists',
+          message: 'El email ya está en uso',
           code: 'EMAIL_EXISTS',
         },
-      }
+      })
     }
 
     const hashedPassword = await bcrypt.hash(dto.password, 10)
@@ -60,25 +60,25 @@ export class AuthService {
     })
 
     if (!user) {
-      return {
+      throw new UnauthorizedException({
         success: false,
         error: {
-          message: 'Invalid credentials',
+          message: 'Credenciales inválidas',
           code: 'INVALID_CREDENTIALS',
         },
-      }
+      })
     }
 
     const isPasswordValid = await bcrypt.compare(dto.password, user.password)
 
     if (!isPasswordValid) {
-      return {
+      throw new UnauthorizedException({
         success: false,
         error: {
-          message: 'Invalid credentials',
+          message: 'Credenciales inválidas',
           code: 'INVALID_CREDENTIALS',
         },
-      }
+      })
     }
 
     const token = this.generateToken(user)
@@ -103,6 +103,6 @@ export class AuthService {
       sub: user.id,
       email: user.email,
       name: user.name,
-    }) as string
+    })
   }
 }
