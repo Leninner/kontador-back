@@ -1,6 +1,5 @@
 import { DataSource, DataSourceOptions } from 'typeorm'
 import { config } from 'dotenv'
-import { User } from '../auth/entities/user.entity'
 
 config()
 
@@ -25,7 +24,7 @@ const options: DataSourceOptions = {
   ...dbConfig,
   synchronize: process.env.TYPEORM_SYNCHRONIZE === 'true',
   logging: process.env.TYPEORM_LOGGING === 'true',
-  entities: [User],
+  entities: ['dist/**/*.entity{.ts,.js}'],
   migrations: [process.env.TYPEORM_MIGRATIONS || 'dist/migrations/*{.ts,.js}'],
   migrationsRun: process.env.TYPEORM_MIGRATIONS_RUN === 'true',
 }

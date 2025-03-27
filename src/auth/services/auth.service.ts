@@ -5,6 +5,7 @@ import { Repository } from 'typeorm'
 import { User } from '../entities/user.entity'
 import { ILoginDto, IRegisterDto, IAuthResponse } from '../../common/interfaces/auth.interface'
 import * as bcrypt from 'bcrypt'
+import { ApiResponseDto } from '../../common/dto/api-response.dto'
 
 @Injectable()
 export class AuthService {
@@ -39,7 +40,7 @@ export class AuthService {
 
     const token = this.generateToken(user)
 
-    return {
+    return new ApiResponseDto({
       success: true,
       data: {
         user: {
@@ -51,7 +52,7 @@ export class AuthService {
         },
         token,
       },
-    }
+    })
   }
 
   async login(dto: ILoginDto): Promise<IAuthResponse> {
@@ -83,7 +84,7 @@ export class AuthService {
 
     const token = this.generateToken(user)
 
-    return {
+    return new ApiResponseDto({
       success: true,
       data: {
         user: {
@@ -95,7 +96,7 @@ export class AuthService {
         },
         token,
       },
-    }
+    })
   }
 
   private generateToken(user: User): string {
