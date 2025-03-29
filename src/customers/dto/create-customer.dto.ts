@@ -1,4 +1,4 @@
-import { IsString, IsEnum, IsNotEmpty, MinLength } from 'class-validator'
+import { IsString, IsEnum, IsNotEmpty, MinLength, IsEmail } from 'class-validator'
 import { DocumentType } from '../entities/customer.entity'
 
 export class CreateCustomerDto {
@@ -19,4 +19,8 @@ export class CreateCustomerDto {
   @IsNotEmpty()
   @MinLength(8)
   documentId: string
+
+  @IsEmail()
+  @IsNotEmpty()
+  email: string
 }

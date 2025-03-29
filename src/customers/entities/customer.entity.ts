@@ -17,13 +17,16 @@ export class Customer extends BaseEntity {
   @Column()
   lastName: string
 
+  @Column()
+  email: string
+
   @Column({
     type: 'enum',
     enum: DocumentType,
   })
   documentType: DocumentType
 
-  @Column()
+  @Column({ unique: true })
   documentId: string
 
   @ManyToOne(() => User, (user) => user.customers)
