@@ -10,7 +10,7 @@ export interface IUser {
 export interface IAuthResponse {
   success: boolean
   data?: {
-    user: Omit<IUser, 'password'>
+    user: Omit<IUser, 'password' | 'createdAt' | 'updatedAt'>
     token: string
   }
   error?: {
