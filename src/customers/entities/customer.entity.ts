@@ -3,10 +3,9 @@ import { User } from '../../auth/entities/user.entity'
 import { BaseEntity } from '../../entities/base.entity'
 
 export enum DocumentType {
-  DNI = 'DNI',
   RUC = 'RUC',
-  CE = 'CE',
   PASSPORT = 'PASSPORT',
+  CI = 'CI',
 }
 
 @Entity('customers')
