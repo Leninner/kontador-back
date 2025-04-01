@@ -1,5 +1,6 @@
 import { IsString, IsEnum, IsNotEmpty, MinLength, IsEmail } from 'class-validator'
 import { DocumentType } from '../entities/customer.entity'
+import { IsValidDocument } from '../../common/dto/validators/document-validator.decorator'
 
 export class CreateCustomerDto {
   @IsString()
@@ -17,7 +18,7 @@ export class CreateCustomerDto {
 
   @IsString()
   @IsNotEmpty()
-  @MinLength(8)
+  @IsValidDocument()
   documentId: string
 
   @IsEmail()

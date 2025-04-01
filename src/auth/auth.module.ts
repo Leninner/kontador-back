@@ -18,7 +18,7 @@ import { Customer } from '../customers/entities/customer.entity'
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
         secret: configService.get<string>('JWT_SECRET'),
-        signOptions: { expiresIn: '1d' },
+        signOptions: { expiresIn: configService.get<string>('NODE_ENV') === 'development' ? '7d' : '1d' },
       }),
       inject: [ConfigService],
     }),
