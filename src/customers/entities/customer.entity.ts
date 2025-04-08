@@ -1,6 +1,6 @@
 import { Entity, Column, ManyToOne, DeleteDateColumn } from 'typeorm'
 import { User } from '../../auth/entities/user.entity'
-import { BaseEntity } from '../../entities/base.entity'
+import { BaseEntity } from '../../common/entities/base.entity'
 
 export enum DocumentType {
   RUC = 'RUC',

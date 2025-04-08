@@ -1,6 +1,6 @@
 import { Entity, Column, OneToMany } from 'typeorm'
 import { IUser } from '../../common/interfaces/auth.interface'
-import { BaseEntity } from '../../entities/base.entity'
+import { BaseEntity } from '../../common/entities/base.entity'
 import { Customer } from '../../customers/entities/customer.entity'
 
 @Entity('users')
