@@ -6,6 +6,7 @@ import { FindAllCustomersDto } from './dto/find-all-customers.dto'
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
 import { CurrentUser } from '../auth/decorators/current-user.decorator'
 import { User } from '../auth/entities/user.entity'
+import { ApiResponseDto } from '../common/dto/api-response.dto'
 
 @Controller('customers')
 @UseGuards(JwtAuthGuard)
@@ -23,8 +24,13 @@ export class CustomersController {
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.customersService.findOne(id)
+  async findOne(@Param('id') id: string) {
+    const customer = await this.customersService.findOne(id)
+
+    return new ApiResponseDto({
+      success: true,
+      data: customer,
+    })
   }
 
   @Patch(':id')

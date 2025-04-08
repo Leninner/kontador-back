@@ -26,7 +26,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     })
   }
 
-  async validate(payload: IJwtPayload): Promise<Omit<User, 'password' | 'createdAt' | 'updatedAt' | 'customers'>> {
+  async validate(
+    payload: IJwtPayload,
+  ): Promise<Omit<User, 'password' | 'createdAt' | 'updatedAt' | 'customers' | 'board'>> {
     const user = await this.userRepository.findOne({
       where: { id: payload.sub },
     })

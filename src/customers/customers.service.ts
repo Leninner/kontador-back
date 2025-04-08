@@ -1,12 +1,11 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Repository, Like, FindOptionsWhere } from 'typeorm'
+import { Repository } from 'typeorm'
 import { Customer } from './entities/customer.entity'
 import { CreateCustomerDto } from './dto/create-customer.dto'
 import { UpdateCustomerDto } from './dto/update-customer.dto'
 import { FindAllCustomersDto } from './dto/find-all-customers.dto'
 import { User } from '../auth/entities/user.entity'
-import { PaginationService } from '../common/services/pagination.service'
 import { ApiResponseDto } from '../common/dto/api-response.dto'
 
 @Injectable()
@@ -20,7 +19,7 @@ export class CustomersService {
     try {
       const customer = this.customerRepository.create({
         ...createCustomerDto,
-        accountant,
+        accountant: { id: accountant.id } as User,
       })
 
       return new ApiResponseDto({
@@ -40,51 +39,63 @@ export class CustomersService {
     accountant: User,
     { name, documentId, page, limit }: FindAllCustomersDto,
   ): Promise<ApiResponseDto<Customer[]>> {
-    const where: FindOptionsWhere<Customer> = { accountant: { id: accountant.id } }
+    const queryBuilder = this.customerRepository
+      .createQueryBuilder('customer')
+      .leftJoinAndSelect('customer.accountant', 'accountant')
+      .where('accountant.id = :accountantId', { accountantId: accountant.id })
 
     if (name) {
-      where.name = Like(`%${name}%`)
+      queryBuilder.andWhere('customer.name ILIKE :name', { name: `%${name}%` })
     }
 
     if (documentId) {
-      where.documentId = Like(`%${documentId}%`)
+      queryBuilder.andWhere('customer.documentId ILIKE :documentId', { documentId: `%${documentId}%` })
     }
 
-    const data = await PaginationService.paginate(
-      this.customerRepository,
-      where,
-      { page, limit },
-      {
-        deletedAt: 'ASC',
-        createdAt: 'DESC',
-      },
-    )
+    queryBuilder.orderBy('customer.deletedAt', 'ASC', 'NULLS FIRST').addOrderBy('customer.createdAt', 'DESC')
+
+    const [items, total] = await queryBuilder
+      .take(limit || 10)
+      .skip(((page || 1) - 1) * (limit || 10))
+      .getManyAndCount()
 
     return new ApiResponseDto({
       success: true,
-      ...data,
+      data: items,
+      meta: {
+        page: page || 1,
+        limit: limit || 10,
+        total,
+        totalPages: Math.ceil(total / (limit || 10)),
+      },
     })
   }
 
-  async findOne(id: string): Promise<ApiResponseDto<Customer>> {
-    const customer = await this.customerRepository.findOne({
-      where: { id },
-    })
+  async findOne(id: string): Promise<Customer> {
+    const customer = await this.customerRepository
+      .createQueryBuilder('customer')
+      .leftJoinAndSelect('customer.accountant', 'accountant')
+      .where('customer.id = :id', { id })
+      .getOne()
 
     if (!customer) {
       throw new NotFoundException(`Customer with ID ${id} not found`)
     }
 
-    return new ApiResponseDto({
-      success: true,
-      data: customer,
-    })
+    return customer
   }
 
   async update(id: string, updateCustomerDto: UpdateCustomerDto): Promise<ApiResponseDto<void>> {
-    const customer = await this.findOne(id)
-    Object.assign(customer, updateCustomerDto)
-    await this.customerRepository.save({ ...customer, ...updateCustomerDto })
+    // Validate that customer exists before updating
+    await this.findOne(id)
+
+    // Use more efficient update method
+    await this.customerRepository
+      .createQueryBuilder()
+      .update(Customer)
+      .set(updateCustomerDto)
+      .where('id = :id', { id })
+      .execute()
 
     return new ApiResponseDto({
       success: true,
@@ -93,7 +104,8 @@ export class CustomersService {
 
   async remove(id: string): Promise<ApiResponseDto<void>> {
     await this.findOne(id)
-    await this.customerRepository.softDelete(id)
+
+    await this.customerRepository.createQueryBuilder().softDelete().where('id = :id', { id }).execute()
 
     return new ApiResponseDto({
       success: true,
