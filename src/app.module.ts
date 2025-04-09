@@ -1,12 +1,15 @@
 import { Module } from '@nestjs/common'
 import { ConfigModule, ConfigService } from '@nestjs/config'
 import { TypeOrmModule } from '@nestjs/typeorm'
+import { APP_INTERCEPTOR } from '@nestjs/core'
 import { AppController } from './app.controller'
 import { AppService } from './app.service'
 import { EmailModule } from './common/services/email/email.module'
 import { AuthModule } from './auth/auth.module'
 import { CustomersModule } from './customers/customers.module'
 import { BoardsModule } from './boards/boards.module'
+import { SentryModule } from './common/services/sentry/sentry.module'
+import { SentryInterceptor } from './common/interceptors/sentry.interceptor'
 
 @Module({
   imports: [
@@ -33,8 +36,15 @@ import { BoardsModule } from './boards/boards.module'
     AuthModule,
     CustomersModule,
     BoardsModule,
+    SentryModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: SentryInterceptor,
+    },
+  ],
 })
 export class AppModule {}
