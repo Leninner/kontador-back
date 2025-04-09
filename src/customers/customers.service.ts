@@ -41,7 +41,7 @@ export class CustomersService {
   ): Promise<ApiResponseDto<Customer[]>> {
     const queryBuilder = this.customerRepository
       .createQueryBuilder('customer')
-      .leftJoinAndSelect('customer.accountant', 'accountant')
+      .leftJoin('customer.accountant', 'accountant')
       .where('accountant.id = :accountantId', { accountantId: accountant.id })
 
     if (name) {
@@ -74,7 +74,8 @@ export class CustomersService {
   async findOne(id: string): Promise<Customer> {
     const customer = await this.customerRepository
       .createQueryBuilder('customer')
-      .leftJoinAndSelect('customer.accountant', 'accountant')
+      .leftJoin('customer.accountant', 'accountant')
+      .select(['customer', 'accountant.id'])
       .where('customer.id = :id', { id })
       .getOne()
 
@@ -86,10 +87,8 @@ export class CustomersService {
   }
 
   async update(id: string, updateCustomerDto: UpdateCustomerDto): Promise<ApiResponseDto<void>> {
-    // Validate that customer exists before updating
     await this.findOne(id)
 
-    // Use more efficient update method
     await this.customerRepository
       .createQueryBuilder()
       .update(Customer)

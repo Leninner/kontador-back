@@ -275,7 +275,6 @@ export class BoardsService {
       column,
     })
 
-    // Link customer if provided
     if (createCardDto.customerId) {
       const customer = await this.customersService.findOne(createCardDto.customerId)
       card.customer = customer
@@ -283,26 +282,21 @@ export class BoardsService {
 
     const savedCard = await this.cardRepository.save(card)
 
-    // Create history record
     await this.createCardHistory(savedCard, user, HistoryActionType.CREATED, null, 'Card created')
 
     return savedCard
   }
 
   async getCard(id: string, user: User): Promise<Card> {
-    // Optimized query with better joins and ordering
     const card = await this.cardRepository
       .createQueryBuilder('card')
-      .leftJoinAndSelect('card.column', 'column')
-      .leftJoinAndSelect('card.customer', 'customer')
-      .leftJoinAndSelect('card.comments', 'comments')
-      .leftJoinAndSelect('comments.user', 'commentUser')
-      .leftJoinAndSelect('card.history', 'history')
-      .leftJoinAndSelect('history.user', 'historyUser')
-      .innerJoin('column.board', 'board')
-      .innerJoin('board.user', 'boardUser')
+      .leftJoin('card.customer', 'customer')
+      .leftJoin('card.comments', 'comments')
+      .leftJoin('card.history', 'history')
+      .leftJoin('history.user', 'historyUser')
+      .select(['card', 'customer.id', 'customer.name', 'customer.email', 'comments', 'history'])
       .where('card.id = :cardId', { cardId: id })
-      .andWhere('boardUser.id = :userId', { userId: user.id })
+      .andWhere('historyUser.id = :userId', { userId: user.id })
       .orderBy('history.createdAt', 'DESC')
       .addOrderBy('comments.createdAt', 'DESC')
       .getOne()
@@ -332,7 +326,6 @@ export class BoardsService {
 
     const changes: Record<string, { old: any; new: any }> = {}
 
-    // Update card properties
     if (updateCardDto.name !== undefined && updateCardDto.name !== card.name) {
       changes.name = { old: card.name, new: updateCardDto.name }
       card.name = updateCardDto.name
@@ -455,7 +448,6 @@ export class BoardsService {
   }
 
   async createComment(createCommentDto: CreateCommentDto, user: User): Promise<Comment> {
-    // Optimized query with more efficient joins
     const card = await this.cardRepository
       .createQueryBuilder('card')
       .innerJoin('card.column', 'column')
