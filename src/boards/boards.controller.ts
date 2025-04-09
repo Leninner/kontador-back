@@ -1,17 +1,18 @@
-import { Controller, Get, Post, Body, Param, Patch, UseGuards } from '@nestjs/common'
+import { Controller, Get, Post, Body, Param, Put, UseGuards } from '@nestjs/common'
 import { BoardsService } from './boards.service'
 import { CreateBoardDto } from './dto/create-board.dto'
 import { CreateColumnDto } from './dto/create-column.dto'
+import { UpdateColumnDto } from './dto/update-column.dto'
 import { CreateCardDto } from './dto/create-card.dto'
-import { CreateCommentDto } from './dto/create-comment.dto'
 import { UpdateCardDto } from './dto/update-card.dto'
+import { CreateCommentDto } from './dto/create-comment.dto'
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
 import { CurrentUser } from '../auth/decorators/current-user.decorator'
 import { User } from '../auth/entities/user.entity'
 import { ApiResponseDto } from '../common/dto/api-response.dto'
 
-@Controller('boards')
 @UseGuards(JwtAuthGuard)
+@Controller('boards')
 export class BoardsController {
   constructor(private readonly boardsService: BoardsService) {}
 
@@ -25,7 +26,7 @@ export class BoardsController {
     })
   }
 
-  @Get()
+  @Get('my-board')
   async getUserBoard(@CurrentUser() user: User) {
     const board = await this.boardsService.getUserBoard(user)
 
@@ -38,6 +39,16 @@ export class BoardsController {
   @Post('columns')
   async createColumn(@Body() createColumnDto: CreateColumnDto, @CurrentUser() user: User) {
     const column = await this.boardsService.createColumn(createColumnDto, user)
+
+    return new ApiResponseDto({
+      success: true,
+      data: column,
+    })
+  }
+
+  @Put('columns/:id')
+  async updateColumn(@Param('id') id: string, @Body() updateColumnDto: UpdateColumnDto, @CurrentUser() user: User) {
+    const column = await this.boardsService.updateColumn(id, updateColumnDto, user)
 
     return new ApiResponseDto({
       success: true,
@@ -75,7 +86,7 @@ export class BoardsController {
     })
   }
 
-  @Patch('cards/:id')
+  @Put('cards/:id')
   async updateCard(@Param('id') id: string, @Body() updateCardDto: UpdateCardDto, @CurrentUser() user: User) {
     console.log('updateCardDto', updateCardDto, 'id', id, 'user', user)
     const card = await this.boardsService.updateCard(id, updateCardDto, user)

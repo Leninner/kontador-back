@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common'
+import { Injectable, NotFoundException, BadRequestException, Inject, forwardRef } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { Board } from './entities/board.entity'
@@ -9,12 +9,14 @@ import { CardHistory } from './entities/card-history.entity'
 import { User } from '../auth/entities/user.entity'
 import { CreateBoardDto } from './dto/create-board.dto'
 import { CreateColumnDto } from './dto/create-column.dto'
+import { UpdateColumnDto } from './dto/update-column.dto'
 import { CreateCardDto } from './dto/create-card.dto'
 import { CreateCommentDto } from './dto/create-comment.dto'
 import { UpdateCardDto } from './dto/update-card.dto'
 import { HistoryActionType } from './entities/card-history.entity'
 import { CustomersService } from '../customers/customers.service'
 import { Customer } from '../customers/entities/customer.entity'
+import { CardNotificationService } from './services/card-notification.service'
 
 @Injectable()
 export class BoardsService {
@@ -29,7 +31,9 @@ export class BoardsService {
     private commentRepository: Repository<Comment>,
     @InjectRepository(CardHistory)
     private historyRepository: Repository<CardHistory>,
+    @Inject(forwardRef(() => CustomersService))
     private customersService: CustomersService,
+    private cardNotificationService: CardNotificationService,
   ) {}
 
   async createBoard(createBoardDto: CreateBoardDto, user: User): Promise<Board> {
@@ -102,8 +106,52 @@ export class BoardsService {
       name: createColumnDto.name,
       description: createColumnDto.description,
       order: createColumnDto.order,
+      sendEmailOnCardEntry: createColumnDto.sendEmailOnCardEntry || false,
+      emailTemplateName: createColumnDto.emailTemplateName,
+      emailConfig: createColumnDto.emailConfig,
       board: { id: board.id } as Board,
     })
+
+    return this.columnRepository.save(column)
+  }
+
+  async updateColumn(id: string, updateColumnDto: UpdateColumnDto, user: User): Promise<Column> {
+    const column = await this.columnRepository
+      .createQueryBuilder('column')
+      .innerJoin('column.board', 'board')
+      .innerJoin('board.user', 'user')
+      .where('column.id = :columnId', { columnId: id })
+      .andWhere('user.id = :userId', { userId: user.id })
+      .getOne()
+
+    if (!column) {
+      throw new NotFoundException('Column not found')
+    }
+
+    // Update fields if provided
+    if (updateColumnDto.name !== undefined) {
+      column.name = updateColumnDto.name
+    }
+
+    if (updateColumnDto.description !== undefined) {
+      column.description = updateColumnDto.description
+    }
+
+    if (updateColumnDto.order !== undefined) {
+      column.order = updateColumnDto.order
+    }
+
+    if (updateColumnDto.sendEmailOnCardEntry !== undefined) {
+      column.sendEmailOnCardEntry = updateColumnDto.sendEmailOnCardEntry
+    }
+
+    if (updateColumnDto.emailTemplateName !== undefined) {
+      column.emailTemplateName = updateColumnDto.emailTemplateName
+    }
+
+    if (updateColumnDto.emailConfig !== undefined) {
+      column.emailConfig = updateColumnDto.emailConfig
+    }
 
     return this.columnRepository.save(column)
   }
@@ -238,6 +286,9 @@ export class BoardsService {
 
     // Handle moving card to another column
     if (updateCardDto.columnId && updateCardDto.columnId !== card.column.id) {
+      // Store the old column for notification
+      const oldColumn = card.column
+
       // Optimized query with select
       const newColumn = await this.columnRepository
         .createQueryBuilder('column')
@@ -251,8 +302,8 @@ export class BoardsService {
         throw new NotFoundException('Column not found')
       }
 
-      const oldColumnId = card.column.id
-      const oldColumnName = card.column.name
+      const oldColumnId = oldColumn.id
+      const oldColumnName = oldColumn.name
       changes.column = { old: oldColumnId, new: updateCardDto.columnId }
 
       card.column = newColumn
@@ -269,6 +320,19 @@ export class BoardsService {
         },
         `Moved from ${oldColumnName} to ${newColumn.name}`,
       )
+
+      // Save card before sending notification to ensure DB is updated
+      await this.cardRepository.save(card)
+
+      // Send notification if needed
+      await this.cardNotificationService.handleCardMoved(card, oldColumn, newColumn, user)
+
+      // Return early since we already saved the card
+      if (Object.keys(changes).length > 0) {
+        await this.createCardHistory(card, user, HistoryActionType.UPDATED, changes, 'Card updated')
+      }
+
+      return card
     }
 
     // Handle customer linking/unlinking

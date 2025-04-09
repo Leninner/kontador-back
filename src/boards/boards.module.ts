@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common'
+import { Module, forwardRef } from '@nestjs/common'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import { Board } from './entities/board.entity'
 import { BoardsService } from './boards.service'
@@ -7,13 +7,19 @@ import { CardHistory } from './entities/card-history.entity'
 import { Card } from './entities/card.entity'
 import { Column } from './entities/column.entity'
 import { Comment } from './entities/comment.entity'
-import { CustomersService } from '../customers/customers.service'
-import { Customer } from '../customers/entities/customer.entity'
+import { CustomersModule } from '../customers/customers.module'
+import { CardNotificationService } from './services/card-notification.service'
+import { EmailModule } from '../common/services/email/email.module'
+import { MailService } from './services/mail.service'
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Board, Column, Card, Comment, CardHistory, Customer])],
+  imports: [
+    TypeOrmModule.forFeature([Board, Column, Card, Comment, CardHistory]),
+    forwardRef(() => CustomersModule),
+    EmailModule,
+  ],
   controllers: [BoardsController],
-  providers: [BoardsService, CustomersService],
+  providers: [BoardsService, CardNotificationService, MailService],
   exports: [BoardsService],
 })
 export class BoardsModule {}
