@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common'
+import { Injectable, UnauthorizedException, Inject, forwardRef } from '@nestjs/common'
 import { JwtService } from '@nestjs/jwt'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
@@ -6,6 +6,7 @@ import { User } from '../entities/user.entity'
 import { ILoginDto, IRegisterDto, IAuthResponse } from '../../common/interfaces/auth.interface'
 import * as bcrypt from 'bcrypt'
 import { ApiResponseDto } from '../../common/dto/api-response.dto'
+import { BoardsService } from '../../boards/boards.service'
 
 @Injectable()
 export class AuthService {
@@ -13,6 +14,8 @@ export class AuthService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly jwtService: JwtService,
+    @Inject(forwardRef(() => BoardsService))
+    private readonly boardsService: BoardsService,
   ) {}
 
   async register(dto: IRegisterDto): Promise<IAuthResponse> {
@@ -37,6 +40,18 @@ export class AuthService {
     })
 
     await this.userRepository.save(user)
+
+    try {
+      await this.boardsService.createBoard(
+        {
+          name: `Tablero de ${user.name}`,
+          description: 'Tablero creado automáticamente',
+        },
+        user,
+      )
+    } catch (error) {
+      console.error('Error al crear el tablero automático:', error)
+    }
 
     const token = this.generateToken(user)
 

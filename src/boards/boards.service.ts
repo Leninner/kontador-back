@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, Inject, forwardRef } from '@nestjs/common'
+import { Injectable, NotFoundException, BadRequestException, Inject, forwardRef, Logger } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { Board } from './entities/board.entity'
@@ -20,6 +20,8 @@ import { CardNotificationService } from './services/card-notification.service'
 
 @Injectable()
 export class BoardsService {
+  private readonly logger = new Logger(BoardsService.name)
+
   constructor(
     @InjectRepository(Board)
     private boardRepository: Repository<Board>,
@@ -37,7 +39,6 @@ export class BoardsService {
   ) {}
 
   async createBoard(createBoardDto: CreateBoardDto, user: User): Promise<Board> {
-    // Check if user already has a board - optimized query with select
     const existingBoard = await this.boardRepository
       .createQueryBuilder('board')
       .select('board.id')
@@ -48,12 +49,88 @@ export class BoardsService {
       throw new BadRequestException('User already has a board')
     }
 
+    // Create and save the board entity
     const board = this.boardRepository.create({
       ...createBoardDto,
       user,
     })
 
-    return this.boardRepository.save(board)
+    // Save board using transaction to ensure data consistency
+    try {
+      const savedBoard = await this.boardRepository.save(board)
+      await this.createDefaultColumns(savedBoard)
+
+      // Fetch the board with columns
+      const boardWithColumns = await this.boardRepository.findOne({
+        where: { id: savedBoard.id },
+        relations: ['columns'],
+      })
+
+      if (!boardWithColumns) {
+        throw new NotFoundException(`Board with ID ${savedBoard.id} not found after creation`)
+      }
+
+      return boardWithColumns
+    } catch (error) {
+      this.logger.error(`Failed to create board: ${error.message}`, error.stack)
+      throw error
+    }
+  }
+
+  private async createDefaultColumns(board: Board): Promise<void> {
+    const defaultColumns = [
+      {
+        name: 'Por hacer',
+        description: 'Tareas pendientes por iniciar',
+        order: 0,
+        sendEmailOnCardEntry: false,
+        board: board,
+      },
+      {
+        name: 'En progreso',
+        description: 'Tareas que se están trabajando actualmente',
+        order: 1,
+        sendEmailOnCardEntry: true,
+        emailTemplateName: 'card-moved',
+        emailConfig: {
+          subject: 'Tu trámite ha iniciado',
+          customMessage: `<p>Estimado cliente,</p><p>Hemos comenzado a trabajar en tu trámite.</p>`,
+        },
+        board: board,
+      },
+      {
+        name: 'Revisión',
+        description: 'Tareas que necesitan ser revisadas',
+        order: 2,
+        sendEmailOnCardEntry: true,
+        emailTemplateName: 'card-moved',
+        emailConfig: {
+          subject: 'Tu trámite está en revisión',
+        },
+        board: board,
+      },
+      {
+        name: 'Completado',
+        description: 'Tareas finalizadas',
+        order: 3,
+        sendEmailOnCardEntry: true,
+        emailTemplateName: 'card-moved',
+        emailConfig: {
+          subject: 'Tu trámite ha sido completado',
+          customMessage: `<p>Estimado {{customer.name}},</p><p>Nos complace informarte que tu trámite ha sido completado exitosamente.</p><p>Saludos cordiales,<br>{{accountant.name}}</p>`,
+        },
+        board: board,
+      },
+    ]
+
+    try {
+      const columns = this.columnRepository.create(defaultColumns)
+      await this.columnRepository.save(columns)
+      this.logger.log(`Created default columns for board ID: ${board.id}`)
+    } catch (error) {
+      this.logger.error(`Failed to create default columns for board ID ${board.id}: ${error.message}`, error.stack)
+      // We don't rethrow the error to allow board creation to succeed even if columns fail
+    }
   }
 
   async getUserBoard(user: User): Promise<Board> {
