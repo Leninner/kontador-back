@@ -7,6 +7,7 @@ import { ILoginDto, IRegisterDto, IAuthResponse } from '../../common/interfaces/
 import * as bcrypt from 'bcrypt'
 import { ApiResponseDto } from '../../common/dto/api-response.dto'
 import { BoardsService } from '../../boards/boards.service'
+import * as Sentry from '@sentry/node'
 
 @Injectable()
 export class AuthService {
@@ -50,6 +51,13 @@ export class AuthService {
         user,
       )
     } catch (error) {
+      Sentry.setTags({
+        user_id: user.id,
+        email: user.email,
+        name: user.name,
+      })
+
+      Sentry.captureException(error)
       console.error('Error al crear el tablero automático:', error)
     }
 
