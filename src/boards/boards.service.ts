@@ -85,6 +85,7 @@ export class BoardsService {
         order: 0,
         sendEmailOnCardEntry: false,
         board: board,
+        color: '#FFD700',
       },
       {
         name: 'En progreso',
@@ -97,6 +98,7 @@ export class BoardsService {
           customMessage: `<p>Estimado cliente,</p><p>Hemos comenzado a trabajar en tu trámite.</p>`,
         },
         board: board,
+        color: '#FFD700',
       },
       {
         name: 'Revisión',
@@ -108,6 +110,7 @@ export class BoardsService {
           subject: 'Tu trámite está en revisión',
         },
         board: board,
+        color: '#FFD700',
       },
       {
         name: 'Completado',
@@ -120,6 +123,7 @@ export class BoardsService {
           customMessage: `<p>Estimado {{customer.name}},</p><p>Nos complace informarte que tu trámite ha sido completado exitosamente.</p><p>Saludos cordiales,<br>{{accountant.name}}</p>`,
         },
         board: board,
+        color: '#FFD700',
       },
     ]
 

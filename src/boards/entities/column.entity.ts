@@ -30,6 +30,9 @@ export class Column extends BaseEntity {
     sendgridTemplateId?: string
   }
 
+  @TypeOrmColumn({ nullable: true })
+  color: string
+
   @Index()
   @ManyToOne(() => Board, (board) => board.columns, { onDelete: 'CASCADE' })
   board: Board

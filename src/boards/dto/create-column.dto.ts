@@ -59,4 +59,8 @@ export class CreateColumnDto {
   @ValidateNested()
   @Type(() => EmailConfigDto)
   emailConfig?: EmailConfigDto
+
+  @IsString()
+  @IsOptional()
+  color?: string
 }
