@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Put, UseGuards } from '@nestjs/common'
+import { Controller, Get, Post, Body, Param, Put, UseGuards, Delete } from '@nestjs/common'
 import { BoardsService } from './boards.service'
 import { CreateBoardDto } from './dto/create-board.dto'
 import { CreateColumnDto } from './dto/create-column.dto'
@@ -104,6 +104,15 @@ export class BoardsController {
     return new ApiResponseDto({
       success: true,
       data: comment,
+    })
+  }
+
+  @Delete('comments/:id')
+  async deleteComment(@Param('id') id: string, @CurrentUser() user: User) {
+    await this.boardsService.deleteComment(id, user)
+
+    return new ApiResponseDto({
+      success: true,
     })
   }
 }

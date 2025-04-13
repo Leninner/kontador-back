@@ -1,4 +1,4 @@
-import { CreateDateColumn, PrimaryGeneratedColumn, UpdateDateColumn, Index } from 'typeorm'
+import { CreateDateColumn, PrimaryGeneratedColumn, UpdateDateColumn, Index, DeleteDateColumn } from 'typeorm'
 
 export abstract class BaseEntity {
   @PrimaryGeneratedColumn('uuid')
@@ -11,4 +11,8 @@ export abstract class BaseEntity {
   @Index()
   @UpdateDateColumn()
   updatedAt: Date
+
+  @Index()
+  @DeleteDateColumn()
+  deletedAt: Date
 }

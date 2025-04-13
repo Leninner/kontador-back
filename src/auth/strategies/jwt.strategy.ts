@@ -2,7 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common'
 import { PassportStrategy } from '@nestjs/passport'
 import { ExtractJwt, Strategy } from 'passport-jwt'
 import { InjectRepository } from '@nestjs/typeorm'
-import { Repository } from 'typeorm'
+import { IsNull, Repository } from 'typeorm'
 import { User } from '../entities/user.entity'
 import { IJwtPayload } from '../../common/interfaces/auth.interface'
 import { ConfigService } from '@nestjs/config'
@@ -28,9 +28,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
   async validate(
     payload: IJwtPayload,
-  ): Promise<Omit<User, 'password' | 'createdAt' | 'updatedAt' | 'customers' | 'board'>> {
+  ): Promise<Omit<User, 'password' | 'createdAt' | 'updatedAt' | 'customers' | 'board' | 'deletedAt'>> {
     const user = await this.userRepository.findOne({
-      where: { id: payload.sub },
+      where: { id: payload.sub, deletedAt: IsNull() },
     })
 
     if (!user) {

@@ -1,4 +1,4 @@
-import { Entity, Column, ManyToOne, DeleteDateColumn, Index } from 'typeorm'
+import { Entity, Column, ManyToOne, Index } from 'typeorm'
 import { User } from '../../auth/entities/user.entity'
 import { BaseEntity } from '../../common/entities/base.entity'
 
@@ -36,8 +36,4 @@ export class Customer extends BaseEntity {
   @Index()
   @ManyToOne(() => User, (user) => user.customers)
   accountant: User
-
-  @Index()
-  @DeleteDateColumn()
-  deletedAt: Date
 }

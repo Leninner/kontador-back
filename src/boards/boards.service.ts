@@ -301,6 +301,8 @@ export class BoardsService {
       .select(['card', 'customer.id', 'customer.name', 'customer.email', 'comments', 'history'])
       .where('card.id = :cardId', { cardId: id })
       .andWhere('historyUser.id = :userId', { userId: user.id })
+      .andWhere('card.deletedAt IS NULL')
+      .andWhere('comments.deletedAt IS NULL')
       .orderBy('history.createdAt', 'DESC')
       .addOrderBy('comments.createdAt', 'DESC')
       .getOne()
@@ -313,7 +315,6 @@ export class BoardsService {
   }
 
   async updateCard(id: string, updateCardDto: UpdateCardDto, user: User): Promise<Card> {
-    // Optimized query with better joins
     const card = await this.cardRepository
       .createQueryBuilder('card')
       .leftJoinAndSelect('card.column', 'column')
@@ -370,6 +371,7 @@ export class BoardsService {
         .innerJoin('board.user', 'user')
         .where('column.id = :columnId', { columnId: updateCardDto.columnId })
         .andWhere('user.id = :userId', { userId: user.id })
+        .andWhere('column.deletedAt IS NULL')
         .getOne()
 
       if (!newColumn) {
@@ -459,6 +461,7 @@ export class BoardsService {
       .innerJoin('board.user', 'boardUser')
       .where('card.id = :cardId', { cardId: createCommentDto.cardId })
       .andWhere('boardUser.id = :userId', { userId: user.id })
+      .andWhere('card.deletedAt IS NULL')
       .getOne()
 
     if (!card) {
@@ -500,5 +503,15 @@ export class BoardsService {
     })
 
     return this.historyRepository.save(history)
+  }
+
+  async deleteComment(id: string, user: User): Promise<void> {
+    const comment = await this.commentRepository.findOne({ where: { id, user } })
+
+    if (!comment) {
+      throw new NotFoundException('Comment not found')
+    }
+
+    await this.commentRepository.update(id, { deletedAt: new Date() })
   }
 }
