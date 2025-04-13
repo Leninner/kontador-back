@@ -144,6 +144,9 @@ export class BoardsService {
       .leftJoinAndSelect('board.columns', 'columns')
       .leftJoinAndSelect('columns.cards', 'cards')
       .where('board.user = :userId', { userId: user.id })
+      .andWhere('board.deletedAt IS NULL')
+      .andWhere('columns.deletedAt IS NULL')
+      .andWhere('cards.deletedAt IS NULL')
       .orderBy('columns.order', 'ASC')
       .addOrderBy('cards.createdAt', 'DESC')
       .getOne()
@@ -291,16 +294,14 @@ export class BoardsService {
     return savedCard
   }
 
-  async getCard(id: string, user: User): Promise<Card> {
+  async getCard(id: string): Promise<Card> {
     const card = await this.cardRepository
       .createQueryBuilder('card')
       .leftJoin('card.customer', 'customer')
       .leftJoin('card.comments', 'comments')
       .leftJoin('card.history', 'history')
-      .leftJoin('history.user', 'historyUser')
       .select(['card', 'customer.id', 'customer.name', 'customer.email', 'comments', 'history'])
       .where('card.id = :cardId', { cardId: id })
-      .andWhere('historyUser.id = :userId', { userId: user.id })
       .andWhere('card.deletedAt IS NULL')
       .andWhere('comments.deletedAt IS NULL')
       .orderBy('history.createdAt', 'DESC')
@@ -397,16 +398,8 @@ export class BoardsService {
         `Moved from ${oldColumnName} to ${newColumn.name}`,
       )
 
-      // Save card before sending notification to ensure DB is updated
       await this.cardRepository.save(card)
-
-      // Send notification if needed
       await this.cardNotificationService.handleCardMoved(card, oldColumn, newColumn, user)
-
-      // Return early since we already saved the card
-      if (Object.keys(changes).length > 0) {
-        await this.createCardHistory(card, user, HistoryActionType.UPDATED, changes, 'Card updated')
-      }
 
       return card
     }
@@ -446,7 +439,7 @@ export class BoardsService {
 
     await this.cardRepository.save(card)
 
-    if (Object.keys(changes).length > 0) {
+    if (changes.name || changes.column) {
       await this.createCardHistory(card, user, HistoryActionType.UPDATED, changes, 'Card updated')
     }
 
@@ -474,17 +467,7 @@ export class BoardsService {
       user,
     })
 
-    const savedComment = await this.commentRepository.save(comment)
-
-    await this.createCardHistory(
-      card,
-      user,
-      HistoryActionType.COMMENT_ADDED,
-      { commentId: savedComment.id },
-      `Comment added: ${createCommentDto.content.substring(0, 50)}${createCommentDto.content.length > 50 ? '...' : ''}`,
-    )
-
-    return savedComment
+    return await this.commentRepository.save(comment)
   }
 
   private async createCardHistory(
@@ -506,12 +489,22 @@ export class BoardsService {
   }
 
   async deleteComment(id: string, user: User): Promise<void> {
-    const comment = await this.commentRepository.findOne({ where: { id, user } })
+    const comment = await this.commentRepository
+      .createQueryBuilder('comment')
+      .leftJoin('comment.card', 'card')
+      .where('comment.id = :id', { id })
+      .andWhere('card.deletedAt IS NULL')
+      .andWhere('comment.deletedAt IS NULL')
+      .select(['card'])
+      .getOne()
 
     if (!comment) {
       throw new NotFoundException('Comment not found')
     }
 
+    console.log(comment.card)
+
     await this.commentRepository.update(id, { deletedAt: new Date() })
+    await this.createCardHistory(comment.card, user, HistoryActionType.COMMENT_DELETED, null, 'Comment deleted')
   }
 }

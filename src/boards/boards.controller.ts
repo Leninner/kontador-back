@@ -77,8 +77,8 @@ export class BoardsController {
   }
 
   @Get('cards/:id')
-  async getCard(@Param('id') id: string, @CurrentUser() user: User) {
-    const card = await this.boardsService.getCard(id, user)
+  async getCard(@Param('id') id: string) {
+    const card = await this.boardsService.getCard(id)
 
     return new ApiResponseDto({
       success: true,
