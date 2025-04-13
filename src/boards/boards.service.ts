@@ -212,7 +212,6 @@ export class BoardsService {
       throw new NotFoundException('Column not found')
     }
 
-    // Update fields if provided
     if (updateColumnDto.name !== undefined) {
       column.name = updateColumnDto.name
     }
@@ -235,6 +234,10 @@ export class BoardsService {
 
     if (updateColumnDto.emailConfig !== undefined) {
       column.emailConfig = updateColumnDto.emailConfig
+    }
+
+    if (updateColumnDto.color !== undefined) {
+      column.color = updateColumnDto.color
     }
 
     return this.columnRepository.save(column)
