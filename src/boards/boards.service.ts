@@ -494,18 +494,15 @@ export class BoardsService {
   async deleteComment(id: string, user: User): Promise<void> {
     const comment = await this.commentRepository
       .createQueryBuilder('comment')
-      .leftJoin('comment.card', 'card')
+      .leftJoinAndSelect('comment.card', 'card')
       .where('comment.id = :id', { id })
       .andWhere('card.deletedAt IS NULL')
       .andWhere('comment.deletedAt IS NULL')
-      .select(['card'])
       .getOne()
 
     if (!comment) {
       throw new NotFoundException('Comment not found')
     }
-
-    console.log(comment.card)
 
     await this.commentRepository.update(id, { deletedAt: new Date() })
     await this.createCardHistory(comment.card, user, HistoryActionType.COMMENT_DELETED, null, 'Comment deleted')
