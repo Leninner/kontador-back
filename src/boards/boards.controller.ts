@@ -10,6 +10,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
 import { CurrentUser } from '../auth/decorators/current-user.decorator'
 import { User } from '../auth/entities/user.entity'
 import { ApiResponseDto } from '../common/dto/api-response.dto'
+import { CreateColumnRulesDto } from './dto/create-column-rules.dto'
 
 @UseGuards(JwtAuthGuard)
 @Controller('boards')
@@ -113,6 +114,16 @@ export class BoardsController {
 
     return new ApiResponseDto({
       success: true,
+    })
+  }
+
+  @Put('columns/:id/rules')
+  async updateColumnRules(@Param('id') id: string, @Body() rulesDto: CreateColumnRulesDto, @CurrentUser() user: User) {
+    const column = await this.boardsService.updateColumnRules(id, rulesDto, user)
+
+    return new ApiResponseDto({
+      success: true,
+      data: column,
     })
   }
 }

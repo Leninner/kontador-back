@@ -12,6 +12,8 @@ import { CardNotificationService } from './services/card-notification.service'
 import { EmailModule } from '../common/services/email/email.module'
 import { MailService } from './services/mail.service'
 import { AuthModule } from '../auth/auth.module'
+import { ColumnRulesService } from './services/column-rules.service'
+import { ScheduledTasksService } from './services/scheduled-tasks.service'
 
 @Module({
   imports: [
@@ -21,7 +23,7 @@ import { AuthModule } from '../auth/auth.module'
     EmailModule,
   ],
   controllers: [BoardsController],
-  providers: [BoardsService, CardNotificationService, MailService],
+  providers: [BoardsService, CardNotificationService, MailService, ColumnRulesService, ScheduledTasksService],
   exports: [BoardsService],
 })
 export class BoardsModule {}

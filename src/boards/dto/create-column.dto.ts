@@ -8,25 +8,53 @@ import {
   IsBoolean,
   IsObject,
   ValidateNested,
+  IsArray,
+  IsEnum,
 } from 'class-validator'
 import { Type } from 'class-transformer'
+import { CreateRuleDto } from './create-column-rules.dto'
+import { ActionType, ConditionType, TriggerType } from './column-rule-types'
 
-export class EmailConfigDto {
-  @IsOptional()
-  @IsString()
-  subject?: string
+export class ConfigDto {
+  // Config can have any properties
+  [key: string]: any
+}
 
-  @IsOptional()
-  @IsString()
-  customMessage?: string
+export class TriggerDto {
+  @IsEnum(TriggerType)
+  type: TriggerType
 
+  @IsObject()
   @IsOptional()
+  config: ConfigDto
+}
+
+export class ConditionDto {
+  @IsEnum(ConditionType)
+  type: ConditionType
+
+  @IsObject()
+  @IsOptional()
+  config: ConfigDto
+}
+
+export class ActionDto {
+  @IsEnum(ActionType)
+  type: ActionType
+
+  @IsObject()
+  @IsOptional()
+  config: ConfigDto
+}
+
+export class RulesDto {
   @IsBoolean()
-  useSendgrid?: boolean
+  enabled: boolean
 
-  @IsOptional()
-  @IsString()
-  sendgridTemplateId?: string
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateRuleDto)
+  rules: CreateRuleDto[]
 }
 
 export class CreateColumnDto {
@@ -46,19 +74,11 @@ export class CreateColumnDto {
   @IsUUID()
   boardId: string
 
-  @IsBoolean()
-  @IsOptional()
-  sendEmailOnCardEntry?: boolean
-
-  @IsString()
-  @IsOptional()
-  emailTemplateName?: string
-
   @IsObject()
   @IsOptional()
   @ValidateNested()
-  @Type(() => EmailConfigDto)
-  emailConfig?: EmailConfigDto
+  @Type(() => RulesDto)
+  rules?: RulesDto
 
   @IsString()
   @IsOptional()

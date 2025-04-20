@@ -1,6 +1,6 @@
-import { IsString, IsOptional, IsNumber, IsBoolean, IsObject, ValidateNested } from 'class-validator'
+import { IsString, IsOptional, IsNumber, IsObject, ValidateNested } from 'class-validator'
 import { Type } from 'class-transformer'
-import { EmailConfigDto } from './create-column.dto'
+import { CreateColumnRulesDto } from './create-column-rules.dto'
 
 export class UpdateColumnDto {
   @IsString()
@@ -15,19 +15,11 @@ export class UpdateColumnDto {
   @IsOptional()
   order?: number
 
-  @IsBoolean()
-  @IsOptional()
-  sendEmailOnCardEntry?: boolean
-
-  @IsString()
-  @IsOptional()
-  emailTemplateName?: string
-
   @IsObject()
   @IsOptional()
   @ValidateNested()
-  @Type(() => EmailConfigDto)
-  emailConfig?: EmailConfigDto
+  @Type(() => CreateColumnRulesDto)
+  rules?: CreateColumnRulesDto
 
   @IsString()
   @IsOptional()

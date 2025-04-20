@@ -16,18 +16,26 @@ export class Column extends BaseEntity {
   @TypeOrmColumn({ default: 0 })
   order: number
 
-  @TypeOrmColumn({ default: false })
-  sendEmailOnCardEntry: boolean
-
-  @TypeOrmColumn({ nullable: true })
-  emailTemplateName: string
-
   @TypeOrmColumn({ nullable: true, type: 'jsonb' })
-  emailConfig: {
-    subject?: string
-    customMessage?: string
-    useSendgrid?: boolean
-    sendgridTemplateId?: string
+  rules: {
+    enabled: boolean
+    rules: Array<{
+      id?: string
+      name: string
+      enabled: boolean
+      trigger: {
+        type: string
+        config?: Record<string, any>
+      }
+      conditions: Array<{
+        type: string
+        config?: Record<string, any>
+      }>
+      action: {
+        type: string
+        config?: Record<string, any>
+      }
+    }>
   }
 
   @TypeOrmColumn({ nullable: true })

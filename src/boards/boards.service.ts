@@ -17,6 +17,9 @@ import { HistoryActionType } from './entities/card-history.entity'
 import { CustomersService } from '../customers/customers.service'
 import { Customer } from '../customers/entities/customer.entity'
 import { CardNotificationService } from './services/card-notification.service'
+import { ColumnRulesService } from './services/column-rules.service'
+import { CreateColumnRulesDto } from './dto/create-column-rules.dto'
+import { ActionType, ConditionType, TriggerType } from './dto/column-rule-types'
 
 @Injectable()
 export class BoardsService {
@@ -36,6 +39,7 @@ export class BoardsService {
     @Inject(forwardRef(() => CustomersService))
     private customersService: CustomersService,
     private cardNotificationService: CardNotificationService,
+    private columnRulesService: ColumnRulesService,
   ) {}
 
   async createBoard(createBoardDto: CreateBoardDto, user: User): Promise<Board> {
@@ -78,52 +82,125 @@ export class BoardsService {
   }
 
   private async createDefaultColumns(board: Board): Promise<void> {
+    const generateRandomRuleId = (boardId: string): string => {
+      return `rule-${Math.random().toString(36).substring(2, 15)}-${boardId.toString().slice(0, 8)}` // 8 characters
+    }
+
     const defaultColumns = [
       {
         name: 'Por hacer',
         description: 'Tareas pendientes por iniciar',
         order: 0,
-        sendEmailOnCardEntry: false,
         board: board,
         color: '#FFD700',
+        rules: {
+          enabled: false,
+          rules: [],
+        },
       },
       {
         name: 'En progreso',
         description: 'Tareas que se están trabajando actualmente',
         order: 1,
-        sendEmailOnCardEntry: true,
-        emailTemplateName: 'card-moved',
-        emailConfig: {
-          subject: 'Tu trámite ha iniciado',
-          customMessage: `<p>Estimado cliente,</p><p>Hemos comenzado a trabajar en tu trámite.</p>`,
-        },
         board: board,
         color: '#FFD700',
+        rules: {
+          enabled: true,
+          rules: [
+            {
+              id: generateRandomRuleId(board.id),
+              name: 'Notificar al iniciar',
+              enabled: true,
+              trigger: {
+                type: TriggerType.CARD_MOVED,
+                config: {},
+              },
+              conditions: [
+                {
+                  type: ConditionType.HAS_CUSTOMER,
+                  config: {},
+                },
+              ],
+              action: {
+                type: ActionType.SEND_EMAIL,
+                config: {
+                  subject: 'Tu trámite ha iniciado',
+                  customMessage: `<p>Estimado cliente,</p><p>Hemos comenzado a trabajar en tu trámite.</p>`,
+                  templateName: 'card-moved',
+                },
+              },
+            },
+          ],
+        },
       },
       {
         name: 'Revisión',
         description: 'Tareas que necesitan ser revisadas',
         order: 2,
-        sendEmailOnCardEntry: true,
-        emailTemplateName: 'card-moved',
-        emailConfig: {
-          subject: 'Tu trámite está en revisión',
-        },
         board: board,
         color: '#FFD700',
+        rules: {
+          enabled: true,
+          rules: [
+            {
+              id: generateRandomRuleId(board.id),
+              name: 'Notificar en revisión',
+              enabled: true,
+              trigger: {
+                type: TriggerType.CARD_MOVED,
+                config: {},
+              },
+              conditions: [
+                {
+                  type: ConditionType.HAS_CUSTOMER,
+                  config: {},
+                },
+              ],
+              action: {
+                type: ActionType.SEND_EMAIL,
+                config: {
+                  subject: 'Tu trámite está en revisión',
+                  templateName: 'card-moved',
+                },
+              },
+            },
+          ],
+        },
       },
       {
         name: 'Completado',
         description: 'Tareas finalizadas',
         order: 3,
-        sendEmailOnCardEntry: true,
-        emailTemplateName: 'card-moved',
-        emailConfig: {
-          subject: 'Tu trámite ha sido completado',
-          customMessage: `<p>Estimado {{customer.name}},</p><p>Nos complace informarte que tu trámite ha sido completado exitosamente.</p><p>Saludos cordiales,<br>{{accountant.name}}</p>`,
-        },
         board: board,
         color: '#FFD700',
+        rules: {
+          enabled: true,
+          rules: [
+            {
+              id: generateRandomRuleId(board.id),
+              name: 'Notificar al completar',
+              enabled: true,
+              trigger: {
+                type: TriggerType.CARD_MOVED,
+                config: {},
+              },
+              conditions: [
+                {
+                  type: ConditionType.HAS_CUSTOMER,
+                  config: {},
+                },
+              ],
+              action: {
+                type: ActionType.SEND_EMAIL,
+                config: {
+                  subject: 'Tu trámite ha sido completado',
+                  customMessage: `<p>Estimado {{customer.name}},</p><p>Nos complace informarte que tu trámite ha sido completado exitosamente.</p><p>Saludos cordiales,<br>{{accountant.name}}</p>`,
+                  templateName: 'card-moved',
+                },
+              },
+            },
+          ],
+        },
       },
     ]
 
@@ -190,9 +267,6 @@ export class BoardsService {
       name: createColumnDto.name,
       description: createColumnDto.description,
       order: createColumnDto.order,
-      sendEmailOnCardEntry: createColumnDto.sendEmailOnCardEntry || false,
-      emailTemplateName: createColumnDto.emailTemplateName,
-      emailConfig: createColumnDto.emailConfig,
       board: { id: board.id } as Board,
     })
 
@@ -224,16 +298,8 @@ export class BoardsService {
       column.order = updateColumnDto.order
     }
 
-    if (updateColumnDto.sendEmailOnCardEntry !== undefined) {
-      column.sendEmailOnCardEntry = updateColumnDto.sendEmailOnCardEntry
-    }
-
-    if (updateColumnDto.emailTemplateName !== undefined) {
-      column.emailTemplateName = updateColumnDto.emailTemplateName
-    }
-
-    if (updateColumnDto.emailConfig !== undefined) {
-      column.emailConfig = updateColumnDto.emailConfig
+    if (updateColumnDto.rules !== undefined) {
+      column.rules = updateColumnDto.rules
     }
 
     if (updateColumnDto.color !== undefined) {
@@ -293,6 +359,9 @@ export class BoardsService {
     const savedCard = await this.cardRepository.save(card)
 
     await this.createCardHistory(savedCard, user, HistoryActionType.CREATED, null, 'Card created')
+
+    // Process column rules for card creation
+    this.columnRulesService.processCardCreated(savedCard)
 
     return savedCard
   }
@@ -367,6 +436,7 @@ export class BoardsService {
     if (updateCardDto.columnId && updateCardDto.columnId !== card.column.id) {
       // Store the old column for notification
       const oldColumn = card.column
+      const previousColumnId = oldColumn.id
 
       // Optimized query with select
       const newColumn = await this.columnRepository
@@ -403,6 +473,9 @@ export class BoardsService {
 
       await this.cardRepository.save(card)
       await this.cardNotificationService.handleCardMoved(card, oldColumn, newColumn, user)
+
+      // Process column rules for card movement
+      this.columnRulesService.processCardMoved(card, previousColumnId)
 
       return card
     }
@@ -506,5 +579,38 @@ export class BoardsService {
 
     await this.commentRepository.update(id, { deletedAt: new Date() })
     await this.createCardHistory(comment.card, user, HistoryActionType.COMMENT_DELETED, null, 'Comment deleted')
+  }
+
+  /**
+   * Update column rules
+   * @param id Column ID
+   * @param rulesDto New rules configuration
+   * @param user Current user
+   * @returns Updated column
+   */
+  async updateColumnRules(id: string, rulesDto: CreateColumnRulesDto, user: User): Promise<Column> {
+    const column = await this.columnRepository.findOne({
+      where: { id },
+      relations: ['board', 'board.user'],
+    })
+
+    if (!column) {
+      throw new NotFoundException(`Column with ID ${id} not found`)
+    }
+
+    if (column.board.user.id !== user.id) {
+      throw new BadRequestException('You do not have permission to update this column')
+    }
+
+    column.rules = rulesDto as any
+
+    try {
+      const updatedColumn = await this.columnRepository.save(column)
+      this.logger.log(`Updated rules for column ID: ${id}`)
+      return updatedColumn
+    } catch (error) {
+      this.logger.error(`Failed to update rules for column ID ${id}: ${error.message}`, error.stack)
+      throw error
+    }
   }
 }
