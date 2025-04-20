@@ -1,7 +1,7 @@
 import { IsOptional, IsString } from 'class-validator'
-import { SearchDto } from '../../common/dto/search.dto'
+import { BaseFilterDto } from '../../common/dto/base-filter.dto'
 
-export class FindAllCustomersDto extends SearchDto {
+export class FindAllCustomersDto extends BaseFilterDto {
   @IsOptional()
   @IsString()
   name?: string

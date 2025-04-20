@@ -11,6 +11,8 @@ import { CustomersModule } from './customers/customers.module'
 import { BoardsModule } from './boards/boards.module'
 import { SentryModule } from './common/services/sentry/sentry.module'
 import { SentryInterceptor } from './common/interceptors/sentry.interceptor'
+import { DeclarationsModule } from './declarations/declarations.module'
+import { InvoicesModule } from './invoices/invoices.module'
 
 @Module({
   imports: [
@@ -38,6 +40,8 @@ import { SentryInterceptor } from './common/interceptors/sentry.interceptor'
     AuthModule,
     CustomersModule,
     BoardsModule,
+    DeclarationsModule,
+    InvoicesModule,
     SentryModule,
   ],
   controllers: [AppController],

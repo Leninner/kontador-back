@@ -1,6 +1,7 @@
-import { Repository, FindOptionsWhere, ObjectLiteral, FindOptionsOrder } from 'typeorm'
+import { Repository, FindOptionsWhere, ObjectLiteral, FindOptionsOrder, SelectQueryBuilder } from 'typeorm'
 import { PaginationDto } from '../dto/pagination.dto'
 import { PaginatedResponse } from '../interfaces/pagination.interface'
+import { ApiResponseDto } from '../dto/api-response.dto'
 
 export class PaginationService {
   static async paginate<T extends ObjectLiteral>(
@@ -25,5 +26,33 @@ export class PaginationService {
         totalPages: Math.ceil(total / limit),
       },
     }
+  }
+
+  static async paginateQueryBuilder<T extends ObjectLiteral>(
+    queryBuilder: SelectQueryBuilder<T>,
+    { page = 1, limit = 10 }: PaginationDto,
+  ): Promise<PaginatedResponse<T>> {
+    const [data, total] = await queryBuilder
+      .take(limit)
+      .skip((page - 1) * limit)
+      .getManyAndCount()
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    }
+  }
+
+  static buildApiResponse<T>(paginatedResult: PaginatedResponse<T>): ApiResponseDto<T[]> {
+    return new ApiResponseDto({
+      success: true,
+      data: paginatedResult.data,
+      meta: paginatedResult.meta,
+    })
   }
 }

@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common'
+import { Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { Customer } from './entities/customer.entity'
@@ -6,14 +6,18 @@ import { CreateCustomerDto } from './dto/create-customer.dto'
 import { UpdateCustomerDto } from './dto/update-customer.dto'
 import { FindAllCustomersDto } from './dto/find-all-customers.dto'
 import { User } from '../auth/entities/user.entity'
-import { ApiResponseDto } from '../common/dto/api-response.dto'
+import { ApiErrorDto, ApiResponseDto } from '../common/dto/api-response.dto'
+import * as Sentry from '@sentry/node'
+import { BasePaginationService } from '../common/services/base-pagination.service'
 
 @Injectable()
-export class CustomersService {
+export class CustomersService extends BasePaginationService<Customer> {
   constructor(
     @InjectRepository(Customer)
     private readonly customerRepository: Repository<Customer>,
-  ) {}
+  ) {
+    super(customerRepository)
+  }
 
   async create(createCustomerDto: CreateCustomerDto, accountant: User): Promise<ApiResponseDto<Customer>> {
     try {
@@ -27,22 +31,31 @@ export class CustomersService {
         data: await this.customerRepository.save(customer),
       })
     } catch (error) {
-      if (error.code === '23505') {
-        throw new ConflictException('Customer already exists')
-      }
+      Sentry.captureException(error)
+      Sentry.captureMessage('Error creating customer', {
+        level: 'error',
+        extra: {
+          createCustomerDto,
+          accountant,
+        },
+      })
 
-      throw error
+      return new ApiResponseDto({
+        success: false,
+        error: new ApiErrorDto({
+          message: 'Error creating customer',
+          code: 'CUSTOMER_CREATION_ERROR',
+        }),
+      })
     }
   }
 
-  async findAll(
-    accountant: User,
-    { name, documentId, page, limit }: FindAllCustomersDto,
-  ): Promise<ApiResponseDto<Customer[]>> {
-    const queryBuilder = this.customerRepository
-      .createQueryBuilder('customer')
-      .leftJoin('customer.accountant', 'accountant')
-      .where('accountant.id = :accountantId', { accountantId: accountant.id })
+  async findAll(accountant: User, findAllCustomersDto: FindAllCustomersDto): Promise<ApiResponseDto<Customer[]>> {
+    const { name, documentId, page, limit } = findAllCustomersDto
+
+    const queryBuilder = this.createBaseQueryBuilder('customer', [{ property: 'accountant', alias: 'accountant' }])
+
+    queryBuilder.where('accountant.id = :accountantId', { accountantId: accountant.id })
 
     if (name) {
       queryBuilder.andWhere('customer.name ILIKE :name', { name: `%${name}%` })
@@ -54,21 +67,7 @@ export class CustomersService {
 
     queryBuilder.orderBy('customer.deletedAt', 'ASC', 'NULLS FIRST').addOrderBy('customer.createdAt', 'DESC')
 
-    const [items, total] = await queryBuilder
-      .take(limit || 10)
-      .skip(((page || 1) - 1) * (limit || 10))
-      .getManyAndCount()
-
-    return new ApiResponseDto({
-      success: true,
-      data: items,
-      meta: {
-        page: page || 1,
-        limit: limit || 10,
-        total,
-        totalPages: Math.ceil(total / (limit || 10)),
-      },
-    })
+    return this.findAllWithQueryBuilder(queryBuilder, { page, limit })
   }
 
   async findOne(id: string): Promise<Customer> {

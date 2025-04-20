@@ -6,6 +6,7 @@ export enum DocumentType {
   RUC = 'RUC',
   PASSPORT = 'PASSPORT',
   CI = 'CI',
+  OTHER = 'OTHER',
 }
 
 @Entity('customers')
@@ -30,7 +31,7 @@ export class Customer extends BaseEntity {
   documentType: DocumentType
 
   @Index()
-  @Column({ unique: true })
+  @Column()
   documentId: string
 
   @Index()
