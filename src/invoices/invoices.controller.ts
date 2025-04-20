@@ -10,7 +10,6 @@ import {
   UseInterceptors,
   UploadedFile,
   Res,
-  BadRequestException,
 } from '@nestjs/common'
 import { FileInterceptor } from '@nestjs/platform-express'
 import { Response } from 'express'
@@ -27,10 +26,6 @@ export class InvoicesController {
   @Post()
   @UseInterceptors(FileInterceptor('pdfFile'))
   async create(@Body() createInvoiceDto: CreateInvoiceDto, @UploadedFile() pdfFile: Express.Multer.File) {
-    if (!pdfFile) {
-      throw new BadRequestException('PDF file is required')
-    }
-
     // Convert numeric strings to numbers for validation
     if (typeof createInvoiceDto.amount === 'string') {
       createInvoiceDto.amount = parseFloat(createInvoiceDto.amount)
