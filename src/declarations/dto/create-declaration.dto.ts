@@ -1,4 +1,42 @@
-import { IsNotEmpty, IsOptional, IsString, IsUUID, Matches } from 'class-validator'
+import {
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Matches,
+  IsArray,
+  ValidateNested,
+  IsNumber,
+  IsIn,
+} from 'class-validator'
+import { Type } from 'class-transformer'
+
+export class DeclarationItemDto {
+  @IsNotEmpty()
+  @IsString()
+  code: string
+
+  @IsNotEmpty()
+  @IsString()
+  description: string
+
+  @IsNotEmpty()
+  @IsNumber()
+  amount: number
+
+  @IsOptional()
+  @IsNumber()
+  taxPercentage?: number
+
+  @IsOptional()
+  @IsNumber()
+  taxAmount?: number
+
+  @IsNotEmpty()
+  @IsString()
+  @IsIn(['income', 'expense', 'tax', 'info'])
+  type: 'income' | 'expense' | 'tax' | 'info'
+}
 
 export class CreateDeclarationDto {
   @IsNotEmpty()
@@ -17,4 +55,10 @@ export class CreateDeclarationDto {
   @IsOptional()
   @IsString()
   documentUrl?: string
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => DeclarationItemDto)
+  items?: DeclarationItemDto[]
 }

@@ -2,6 +2,16 @@ import { Column, Entity, ManyToOne, JoinColumn } from 'typeorm'
 import { BaseEntity } from '../../common/entities/base.entity'
 import { Customer } from '../../customers/entities/customer.entity'
 
+// Define the interface for a declaration item
+export interface DeclarationItem {
+  code: string
+  description: string
+  amount: number
+  taxPercentage?: number
+  taxAmount?: number
+  type: 'income' | 'expense' | 'tax' | 'info'
+}
+
 @Entity('declarations')
 export class Declaration extends BaseEntity {
   @Column()
@@ -34,4 +44,7 @@ export class Declaration extends BaseEntity {
 
   @Column({ nullable: true })
   documentUrl: string
+
+  @Column({ type: 'jsonb', nullable: true, default: '[]' })
+  items: DeclarationItem[]
 }

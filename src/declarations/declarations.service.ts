@@ -50,30 +50,33 @@ export class DeclarationsService {
       })
     }
 
-    // Apply search if provided
     if (findDeclarationsDto.search) {
       queryBuilder.andWhere('(declaration.formType ILIKE :search OR declaration.period ILIKE :search)', {
         search: `%${findDeclarationsDto.search}%`,
       })
     }
 
-    // Apply sorting
     const sortBy = findDeclarationsDto.sortBy || 'createdAt'
     const sortOrder = findDeclarationsDto.sortOrder || 'DESC'
     queryBuilder.orderBy(`declaration.${sortBy}`, sortOrder)
 
-    // Add pagination
     const page = findDeclarationsDto.page || 1
     const limit = findDeclarationsDto.limit || 10
     const skip = (page - 1) * limit
 
     queryBuilder.skip(skip).take(limit)
 
-    // Execute query
     const [declarations, total] = await queryBuilder.getManyAndCount()
 
     return {
-      data: declarations,
+      data: declarations.map((declaration) => {
+        return {
+          ...declaration,
+          totalTax: Number(declaration.totalTax),
+          totalExpenses: Number(declaration.totalExpenses),
+          totalIncome: Number(declaration.totalIncome),
+        }
+      }),
       meta: {
         total,
         page,

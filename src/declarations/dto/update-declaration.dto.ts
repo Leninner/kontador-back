@@ -1,5 +1,6 @@
-import { IsOptional, IsString, IsNumber, Matches, IsDate, IsIn } from 'class-validator'
+import { IsOptional, IsString, IsNumber, Matches, IsDate, IsIn, IsArray, ValidateNested } from 'class-validator'
 import { Type } from 'class-transformer'
+import { DeclarationItemDto } from './create-declaration.dto'
 
 export class UpdateDeclarationDto {
   @IsOptional()
@@ -36,4 +37,10 @@ export class UpdateDeclarationDto {
   @IsOptional()
   @IsString()
   documentUrl?: string
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => DeclarationItemDto)
+  items?: DeclarationItemDto[]
 }
