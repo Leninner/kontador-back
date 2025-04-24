@@ -8,7 +8,6 @@ import { Card } from './entities/card.entity'
 import { Column } from './entities/column.entity'
 import { Comment } from './entities/comment.entity'
 import { CustomersModule } from '../customers/customers.module'
-import { CardNotificationService } from './services/card-notification.service'
 import { EmailModule } from '../common/services/email/email.module'
 import { MailService } from './services/mail.service'
 import { AuthModule } from '../auth/auth.module'
@@ -23,7 +22,7 @@ import { ScheduledTasksService } from './services/scheduled-tasks.service'
     EmailModule,
   ],
   controllers: [BoardsController],
-  providers: [BoardsService, CardNotificationService, MailService, ColumnRulesService, ScheduledTasksService],
+  providers: [BoardsService, MailService, ColumnRulesService, ScheduledTasksService],
   exports: [BoardsService],
 })
 export class BoardsModule {}

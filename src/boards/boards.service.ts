@@ -16,7 +16,6 @@ import { UpdateCardDto } from './dto/update-card.dto'
 import { HistoryActionType } from './entities/card-history.entity'
 import { CustomersService } from '../customers/customers.service'
 import { Customer } from '../customers/entities/customer.entity'
-import { CardNotificationService } from './services/card-notification.service'
 import { ColumnRulesService } from './services/column-rules.service'
 import { CreateColumnRulesDto } from './dto/create-column-rules.dto'
 import { ActionType, ConditionType, TriggerType } from './dto/column-rule-types'
@@ -38,7 +37,6 @@ export class BoardsService {
     private historyRepository: Repository<CardHistory>,
     @Inject(forwardRef(() => CustomersService))
     private customersService: CustomersService,
-    private cardNotificationService: CardNotificationService,
     private columnRulesService: ColumnRulesService,
   ) {}
 
@@ -359,9 +357,7 @@ export class BoardsService {
     const savedCard = await this.cardRepository.save(card)
 
     await this.createCardHistory(savedCard, user, HistoryActionType.CREATED, null, 'Card created')
-
-    // Process column rules for card creation
-    this.columnRulesService.processCardCreated(savedCard)
+    await this.columnRulesService.processCardCreated(savedCard)
 
     return savedCard
   }
@@ -472,10 +468,7 @@ export class BoardsService {
       )
 
       await this.cardRepository.save(card)
-      await this.cardNotificationService.handleCardMoved(card, oldColumn, newColumn, user)
-
-      // Process column rules for card movement
-      this.columnRulesService.processCardMoved(card, previousColumnId)
+      await this.columnRulesService.processCardMoved(card, previousColumnId)
 
       return card
     }

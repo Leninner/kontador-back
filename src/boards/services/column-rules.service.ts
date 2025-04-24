@@ -6,6 +6,17 @@ import { Repository } from 'typeorm'
 import { InjectRepository } from '@nestjs/typeorm'
 import { CreateRuleDto } from '../dto/create-column-rules.dto'
 import { Rule, ColumnRules } from '../interfaces/rule.interface'
+import {
+  AddLabelAction,
+  NotifyUserAction,
+  AssignDueDateAction,
+  MoveToColumnAction,
+  SendEmailAction,
+  Action,
+} from '../interfaces/action.interface'
+import { Condition } from '../interfaces/condition.interface'
+import { Column } from '../entities/column.entity'
+import { CardHistory, HistoryActionType } from '../entities/card-history.entity'
 
 @Injectable()
 export class ColumnRulesService {
@@ -13,14 +24,11 @@ export class ColumnRulesService {
     private readonly mailService: MailService,
     @InjectRepository(Card)
     private readonly cardRepository: Repository<Card>,
+    @InjectRepository(CardHistory)
+    private readonly historyRepository: Repository<CardHistory>,
   ) {}
 
-  /**
-   * Transform rule DTO to proper structure matching the expected interfaces
-   */
   transformRuleDto(ruleDto: CreateRuleDto): Rule {
-    // The rule has already been validated by the ColumnRulesValidationPipe
-    // We can now directly map it to our expected structure
     return {
       id: ruleDto.id,
       name: ruleDto.name,
@@ -40,9 +48,6 @@ export class ColumnRulesService {
     }
   }
 
-  /**
-   * Ensure default values for specific trigger types
-   */
   private ensureDefaultValues(type: TriggerType, config: Record<string, any>): Record<string, any> {
     if (type === TriggerType.DUE_DATE_APPROACHING && config.daysBeforeDue === undefined) {
       return { ...config, daysBeforeDue: 3 }
@@ -51,31 +56,19 @@ export class ColumnRulesService {
     return config
   }
 
-  /**
-   * Processes rules when a card is created
-   */
-  processCardCreated(card: Card): void {
-    this.processRules(card, TriggerType.CARD_CREATED)
+  async processCardCreated(card: Card): Promise<void> {
+    await this.processRules(card, TriggerType.CARD_CREATED)
   }
 
-  /**
-   * Processes rules when a card is moved
-   */
-  processCardMoved(card: Card, previousColumnId: string): void {
-    this.processRules(card, TriggerType.CARD_MOVED, { previousColumnId })
+  async processCardMoved(card: Card, previousColumnId: string): Promise<void> {
+    await this.processRules(card, TriggerType.CARD_MOVED, { previousColumnId })
   }
 
-  /**
-   * Processes rules when a card's due date is approaching
-   */
-  processDueDateApproaching(card: Card): void {
-    this.processRules(card, TriggerType.DUE_DATE_APPROACHING)
+  async processDueDateApproaching(card: Card): Promise<void> {
+    await this.processRules(card, TriggerType.DUE_DATE_APPROACHING)
   }
 
-  /**
-   * Processes all rules for a given trigger
-   */
-  private processRules(card: Card, triggerType: TriggerType, context: Record<string, any> = {}): void {
+  private async processRules(card: Card, triggerType: TriggerType, context: Record<string, any> = {}): Promise<void> {
     const column = card.column
 
     if (!column.rules || !column.rules.enabled) {
@@ -84,32 +77,24 @@ export class ColumnRulesService {
 
     const columnRules = column.rules as unknown as ColumnRules
 
-    // Process each rule that matches the trigger type
     if (Array.isArray(columnRules.rules)) {
       for (const rule of columnRules.rules) {
-        // Skip disabled rules
         if (!rule.enabled) continue
 
-        // Check if the rule's trigger matches
         if (rule.trigger.type !== triggerType || !this.matchesTriggerContext(rule.trigger, context)) {
           continue
         }
 
-        // Check all conditions
-        const conditionsMet = this.evaluateConditions(card, rule.conditions)
+        const conditionsMet = this.evaluateConditions(card, rule.conditions as Condition[])
         if (!conditionsMet) {
           continue
         }
 
-        // Execute the action
-        this.executeAction(card, rule.action)
+        await this.executeAction(card, rule.action as Action)
       }
     }
   }
 
-  /**
-   * Checks if a trigger matches the provided context
-   */
   private matchesTriggerContext(trigger: Rule['trigger'], context: Record<string, any>): boolean {
     switch (trigger.type) {
       case TriggerType.CARD_MOVED:
@@ -125,12 +110,9 @@ export class ColumnRulesService {
     }
   }
 
-  /**
-   * Evaluates all conditions for a card
-   */
-  private evaluateConditions(card: Card, conditions: Rule['conditions']): boolean {
+  private evaluateConditions(card: Card, conditions: Condition[]): boolean {
     if (conditions.length === 0) {
-      return true // No conditions means all conditions are met
+      return true
     }
 
     for (const condition of conditions) {
@@ -143,17 +125,13 @@ export class ColumnRulesService {
     return true
   }
 
-  /**
-   * Evaluates a single condition
-   */
-  private evaluateCondition(card: Card, condition: Rule['conditions'][0]): boolean {
+  private evaluateCondition(card: Card, condition: Condition): boolean {
     switch (condition.type) {
       case ConditionType.HAS_CUSTOMER:
         return !!card.customer
       case ConditionType.HAS_DUE_DATE:
         return !!card.dueDate
       case ConditionType.CUSTOM_FIELD_VALUE:
-        // Check if the card has the specified custom field with the specified value
         return this.checkCustomFieldValue(card, condition.config?.fieldId, condition.config?.value)
       case ConditionType.HAS_LABEL:
         return this.checkHasLabel(card, condition.config?.labelId)
@@ -162,76 +140,126 @@ export class ColumnRulesService {
     }
   }
 
-  /**
-   * Checks if a card has a custom field with a specific value
-   */
   private checkCustomFieldValue(card: Card, fieldId?: string, value?: string): boolean {
     if (!fieldId || !value) return false
 
-    // Access card.customFields safely
     const customFields = (card as any).customFields || []
     return customFields.some((field: any) => field.id === fieldId && field.value === value) as boolean
   }
 
-  /**
-   * Checks if a card has a specific label
-   */
   private checkHasLabel(card: Card, labelId?: string): boolean {
     if (!labelId) return false
 
-    // Access card.labels safely
     const labels = (card as any).labels || []
     return labels.some((label: any) => label.id === labelId) as boolean
   }
 
-  /**
-   * Executes a single action
-   */
-  private executeAction(card: Card, action: Rule['action']): void {
+  private async executeAction(card: Card, action: Rule['action']): Promise<void> {
     switch (action.type) {
       case ActionType.SEND_EMAIL:
-        this.sendEmail(card, action)
+        await this.sendEmail(card, action as SendEmailAction)
         break
       case ActionType.MOVE_TO_COLUMN:
-        this.moveCardToColumn(card, action)
+        await this.moveCardToColumn(card, action as MoveToColumnAction)
         break
       case ActionType.ASSIGN_DUE_DATE:
-        this.assignDueDate(card, action)
+        await this.assignDueDate(card, action as AssignDueDateAction)
         break
       case ActionType.ADD_LABEL:
-        this.addLabel(card, action)
+        await this.addLabel(card, action as AddLabelAction)
         break
       case ActionType.NOTIFY_USER:
-        this.notifyUser(card, action)
+        await this.notifyUser(card, action as NotifyUserAction)
         break
     }
   }
 
-  private sendEmail(card: Card, action: Rule['action']): void {
+  private async sendEmail(card: Card, action: Rule['action']): Promise<void> {
     if (action.type !== ActionType.SEND_EMAIL) return
 
-    // Implementation using MailService
-    const emailData = {
-      to: action.config?.recipient || this.determineRecipient(card),
-      subject: action.config?.subject || this.getEmailSubject(card, action.type),
-      templateId: action.config?.templateName || 'card-moved',
-      templateData: {
-        cardName: card.name,
-        cardDescription: card.description || '',
-        dueDate: card.dueDate ? card.dueDate.toISOString() : '',
-        customerName: card.customer?.name || 'No customer',
-        columnName: card.column?.name || '',
+    const templateName = action.config?.templateName || 'card-moved'
+    const to = action.config?.recipient || this.determineRecipient(card)
+    const subject = action.config?.subject || this.getEmailSubject(card, action.type)
+
+    if (templateName === 'card-moved') {
+      // Get the last move history entry efficiently, only if we need it
+      let oldColumnName = 'Desconocido'
+      let oldColumnId = '0'
+
+      // Only fetch history if not already available on the card
+      if (!card.history || !card.history.length) {
+        // Fetch only the most recent MOVED history record directly from the database
+        const latestMoveHistory = await this.historyRepository
+          .createQueryBuilder('history')
+          .where('history.card.id = :cardId', { cardId: card.id })
+          .andWhere('history.action = :action', { action: HistoryActionType.MOVED })
+          .orderBy('history.createdAt', 'DESC')
+          .limit(1)
+          .getOne()
+
+        if (latestMoveHistory && latestMoveHistory.changes) {
+          oldColumnName = latestMoveHistory.changes.oldColumnName || 'Desconocido'
+          oldColumnId = latestMoveHistory.changes.oldColumnId || '0'
+        }
+      } else {
+        // If history is already loaded, use find in memory
+        const lastMoveHistory = card.history.find((h) => h.action === HistoryActionType.MOVED)
+        if (lastMoveHistory && lastMoveHistory.changes) {
+          oldColumnName = lastMoveHistory.changes.oldColumnName || 'Desconocido'
+          oldColumnId = lastMoveHistory.changes.oldColumnId || '0'
+        }
+      }
+
+      const templateData = {
+        card: {
+          name: card.name,
+          description: card.description || '',
+          dueDate: card.dueDate ? card.dueDate.toISOString() : '',
+        },
+        customer: {
+          name: card.customer?.name || 'Desconocido',
+          email: card.customer?.email || 'Desconocido',
+        },
+        accountant: {
+          name: card.customer?.accountant?.name || 'Desconocido',
+          email: card.customer?.accountant?.email || 'Desconocido',
+        },
+        oldColumn: {
+          name: oldColumnName,
+          id: oldColumnId,
+        },
+        newColumn: {
+          name: card.column?.name || 'Desconocido',
+          id: card.column?.id || '0',
+        },
         customMessage: action.config?.customMessage || '',
-      },
+      }
+
+      console.log(`Sending card-moved email with data:`, JSON.stringify(templateData))
+
+      await this.mailService.sendCardMovedEmail(to, subject, templateData)
+    } else if (templateName === 'notification') {
+      // Preparar datos para la plantilla notification
+      const templateData = {
+        cardName: card.name,
+        message: action.config?.customMessage || '',
+      }
+
+      // Log template data for debugging
+      console.log(`Sending notification email with data:`, JSON.stringify(templateData))
+
+      await this.mailService.sendNotificationEmail(to, subject, templateData)
+    } else {
+      // Para otros tipos de plantillas usamos el método genérico
+      console.log(`Sending ${templateName} email, using generic template handler`)
+
+      await this.mailService.sendTypedTemplateEmail(to, subject, templateName, action.config || {})
     }
 
-    this.mailService.sendTemplateEmail(emailData).catch((error) => {
-      console.error(`Error sending email for card ${card.id}:`, error)
-    })
+    console.log(`Email sent for card ${card.id}`)
   }
 
   private determineRecipient(card: Card): string {
-    // Determine appropriate recipient based on card data
     return card.customer?.email || 'admin@example.com'
   }
 
@@ -244,32 +272,35 @@ export class ColumnRulesService {
     }
   }
 
-  private moveCardToColumn(card: Card, action: Rule['action']): void {
+  private async moveCardToColumn(card: Card, action: MoveToColumnAction): Promise<void> {
     if (action.type !== ActionType.MOVE_TO_COLUMN || !action.config?.columnId) return
 
-    // Implementation would update the card's column
     console.log(`Moving card ${card.id} to column ${action.config.columnId}`)
+    card.column = {
+      id: action.config.columnId,
+    } as Column
+
+    await this.cardRepository.save(card)
   }
 
-  private assignDueDate(card: Card, action: Rule['action']): void {
+  private async assignDueDate(card: Card, action: AssignDueDateAction): Promise<void> {
     if (action.type !== ActionType.ASSIGN_DUE_DATE || !action.config?.daysFromNow) return
 
     const daysFromNow = action.config.daysFromNow
     const dueDate = new Date()
     dueDate.setDate(dueDate.getDate() + daysFromNow)
 
-    // Implementation would update the card's due date
     console.log(`Assigning due date ${dueDate.toISOString()} to card ${card.id}`)
+    card.dueDate = dueDate
+    await this.cardRepository.save(card)
   }
 
-  private async addLabel(card: Card, action: Rule['action']): Promise<void> {
+  private async addLabel(card: Card, action: AddLabelAction): Promise<void> {
     if (action.type !== ActionType.ADD_LABEL || !action.config?.labelId) return
 
-    // Implementation would add a label to the card
     const labelId = action.config.labelId
     console.log(`Adding label ${labelId} to card ${card.id}`)
 
-    // Add the label to the card (assuming labels is an array of strings)
     if (!card.labels) {
       card.labels = []
     }
@@ -277,10 +308,19 @@ export class ColumnRulesService {
     await this.cardRepository.save(card)
   }
 
-  private notifyUser(card: Card, action: Rule['action']): void {
+  private async notifyUser(card: Card, action: NotifyUserAction): Promise<void> {
     if (action.type !== ActionType.NOTIFY_USER || !action.config?.userId || !action.config?.message) return
 
-    // In a real implementation, this would connect to a notification system
     console.log(`Notifying user ${action.config.userId} about card ${card.id}: ${action.config.message}`)
+
+    const templateData = {
+      cardName: card.name,
+      message: action.config.message,
+    }
+
+    // Log template data for debugging
+    console.log(`Sending notification email with data:`, JSON.stringify(templateData))
+
+    await this.mailService.sendNotificationEmail(action.config.userId, action.config.message, templateData)
   }
 }

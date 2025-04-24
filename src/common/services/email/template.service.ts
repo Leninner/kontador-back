@@ -30,6 +30,12 @@ export class TemplateService {
 
     try {
       const templateContent = fs.readFileSync(templatePath, 'utf-8')
+
+      // Check if template is empty
+      if (!templateContent || templateContent.trim() === '') {
+        throw new Error(`Template file exists but is empty: ${templateName}`)
+      }
+
       const compiledTemplate = Handlebars.compile(templateContent)
 
       // Guardar en caché para futuras solicitudes
@@ -47,7 +53,15 @@ export class TemplateService {
   render(templateName: string, data: Record<string, any> = {}): string {
     try {
       const template = this.compileTemplate(templateName)
-      return template(data) as string
+      const renderedContent = template(data)
+
+      // Verify that rendered content is not empty
+      if (!renderedContent || renderedContent.trim() === '') {
+        console.warn(`Template ${templateName} rendered empty content, using fallback`)
+        return this.renderFallbackTemplate(data)
+      }
+
+      return renderedContent
     } catch (error) {
       // Si no podemos cargar la plantilla, devolvemos un mensaje de error
       console.error(`Failed to render template ${templateName}:`, error)
@@ -72,9 +86,9 @@ export class TemplateService {
    * Plantilla de respaldo genérica en caso de error
    */
   private renderFallbackTemplate(data: Record<string, any>): string {
-    const customerName = data.customer?.name || 'Estimado cliente'
-    const cardName = data.card?.name || 'su solicitud'
-    const columnName = data.newColumn?.name || 'una nueva etapa'
+    const customerName = data.customer?.name || data.customerName || 'Estimado cliente'
+    const cardName = data.card?.name || data.cardName || 'su solicitud'
+    const columnName = data.newColumn?.name || data.columnName || 'una nueva etapa'
 
     return `
       <div style="font-family: Arial, sans-serif; padding: 20px;">

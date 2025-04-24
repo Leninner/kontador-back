@@ -1,0 +1,63 @@
+<html>
+  <head>
+    <meta charset='UTF-8' />
+    <meta name='viewport' content='width=device-width, initial-scale=1.0' />
+    <title>Notificación</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        line-height: 1.6;
+        color: #333;
+        margin: 0;
+        padding: 0;
+      }
+      .container {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 20px;
+        border: 1px solid #eee;
+      }
+      .header {
+        padding: 20px 0;
+        text-align: center;
+        border-bottom: 1px solid #eee;
+      }
+      .content {
+        padding: 20px 0;
+      }
+      .footer {
+        padding: 20px 0;
+        text-align: center;
+        font-size: 12px;
+        color: #888;
+        border-top: 1px solid #eee;
+      }
+    </style>
+  </head>
+  <body>
+    <div class='container'>
+      <div class='header'>
+        <h2>Notificación Importante de Kontador</h2>
+      </div>
+      <div class='content'>
+        <p>Se ha producido una actualización importante en su cuenta.</p>
+
+        {{#if cardName}}
+          <p>La tarjeta <strong>{{cardName}}</strong> ha sido actualizada.</p>
+        {{/if}}
+
+        {{#if message}}
+          <p>Mensaje: {{message}}</p>
+        {{/if}}
+
+        <p>Por favor, revise los detalles en su cuenta de Kontador.</p>
+
+        <p>Si tiene alguna pregunta, no dude en contactar a su contador asignado.</p>
+      </div>
+      <div class='footer'>
+        <p>Este es un mensaje automático, por favor no responda a este correo.</p>
+        <p>&copy; 2023 Kontador. Todos los derechos reservados.</p>
+      </div>
+    </div>
+  </body>
+</html>

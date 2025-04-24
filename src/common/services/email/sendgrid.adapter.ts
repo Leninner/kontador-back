@@ -24,42 +24,54 @@ export class SendGridAdapter implements IEmailAdapter {
         return true
       }
 
+      // Ensure we have valid content (html or text)
+      const html = message.html || ''
+      const text = message.text || ''
+
+      // Debug content
+      console.log('Email content check - HTML length:', html.length, 'Text length:', text.length)
+
+      // Validate if both html and text are empty
+      if (!html && !text) {
+        console.error('Error: Email must have either html or text content')
+        return false
+      }
+
+      // If html is empty or whitespace but text exists, use text as html
+      const finalHtml = html && html.trim().length > 0 ? html : text || ' '
+
+      // Always ensure there's at least some text content
+      const finalText = text && text.trim().length > 0 ? text : html || ' '
+
+      // Add a fallback space character if both are still empty after processing
+      if (finalHtml.trim() === '') {
+        console.warn('Warning: Using fallback content for HTML')
+      }
+
+      // Debug final content
+      console.log('Final content - HTML length:', finalHtml.length, 'Text length:', finalText.length)
+
       await SendGrid.send({
         to: message.to,
         from: message.from || this.defaultFrom,
         subject: message.subject,
-        text: message.text || '',
-        html: message.html || '',
+        text: finalText,
+        html: finalHtml,
       })
       return true
     } catch (error) {
-      console.error('Error sending email via SendGrid:', error)
+      console.error('Error sending email via SendGrid:', JSON.stringify(error.response?.body || error))
+      if (error.response?.body?.errors) {
+        console.error('SendGrid error details:', JSON.stringify(error.response.body.errors))
+      }
       return false
     }
   }
 
+  // This method is kept for interface compatibility, but redirects to the send method
+  // as we're now rendering templates with Handlebars before sending
   async sendTemplate(message: EmailMessage): Promise<boolean> {
-    if (!message.templateId) {
-      throw new Error('Template ID is required for template emails')
-    }
-
-    try {
-      if (!this.configService.get<string>('SENDGRID_API_KEY')) {
-        console.log('Template email sending skipped: SENDGRID_API_KEY not configured')
-        return true
-      }
-
-      await SendGrid.send({
-        to: message.to,
-        from: message.from || this.defaultFrom,
-        subject: message.subject,
-        templateId: message.templateId,
-        dynamicTemplateData: message.templateData || {},
-      })
-      return true
-    } catch (error) {
-      console.error('Error sending template email via SendGrid:', error)
-      return false
-    }
+    console.warn('SendGrid templates are deprecated. Use EmailService.sendTemplateEmail instead.')
+    return this.send(message)
   }
 }
