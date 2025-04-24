@@ -18,6 +18,9 @@ export class Card extends BaseEntity {
   @Column({ nullable: true })
   dueDate: Date
 
+  @Column({ type: 'simple-array', nullable: true })
+  labels: string[]
+
   @Index()
   @ManyToOne(() => BoardColumn, (column) => column.cards, { onDelete: 'CASCADE' })
   column: BoardColumn

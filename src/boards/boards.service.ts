@@ -602,7 +602,13 @@ export class BoardsService {
       throw new BadRequestException('You do not have permission to update this column')
     }
 
-    column.rules = rulesDto as any
+    // Transform and validate rules to ensure they match supported types
+    const validatedRules = {
+      enabled: rulesDto.enabled,
+      rules: rulesDto.rules.map((rule) => this.columnRulesService.transformRuleDto(rule)),
+    }
+
+    column.rules = validatedRules as any
 
     try {
       const updatedColumn = await this.columnRepository.save(column)

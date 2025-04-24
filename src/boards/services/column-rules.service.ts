@@ -2,121 +2,54 @@ import { Injectable } from '@nestjs/common'
 import { Card } from '../entities/card.entity'
 import { MailService } from './mail.service'
 import { ActionType, ConditionType, TriggerType } from '../dto/column-rule-types'
-
-// Reuse the type aliases from the enum types
-export type { TriggerType, ConditionType, ActionType }
-
-export interface BaseTriggerConfig {
-  type: TriggerType
-}
-
-export interface CardCreatedTrigger extends BaseTriggerConfig {
-  type: TriggerType.CARD_CREATED
-}
-
-export interface CardMovedTrigger extends BaseTriggerConfig {
-  type: TriggerType.CARD_MOVED
-  fromColumnId?: string
-}
-
-export interface DueDateApproachingTrigger extends BaseTriggerConfig {
-  type: TriggerType.DUE_DATE_APPROACHING
-  daysBeforeDue: number
-}
-
-export type Trigger = CardCreatedTrigger | CardMovedTrigger | DueDateApproachingTrigger
-
-export interface BaseConditionConfig {
-  type: ConditionType
-}
-
-export interface HasCustomerCondition extends BaseConditionConfig {
-  type: ConditionType.HAS_CUSTOMER
-}
-
-export interface HasDueDateCondition extends BaseConditionConfig {
-  type: ConditionType.HAS_DUE_DATE
-}
-
-export interface CustomFieldValueCondition extends BaseConditionConfig {
-  type: ConditionType.CUSTOM_FIELD_VALUE
-  fieldId: string
-  value: string
-}
-
-export interface HasLabelCondition extends BaseConditionConfig {
-  type: ConditionType.HAS_LABEL
-  labelId: string
-}
-
-export type Condition = HasCustomerCondition | HasDueDateCondition | CustomFieldValueCondition | HasLabelCondition
-
-export interface BaseActionConfig {
-  type: ActionType
-}
-
-export interface SendEmailAction extends BaseActionConfig {
-  type: ActionType.SEND_EMAIL
-  recipient?: string
-  template?: string
-  config?: {
-    subject?: string
-    templateName?: string
-    customMessage?: string
-    [key: string]: any
-  }
-}
-
-export interface MoveToColumnAction extends BaseActionConfig {
-  type: ActionType.MOVE_TO_COLUMN
-  columnId: string
-}
-
-export interface AssignDueDateAction extends BaseActionConfig {
-  type: ActionType.ASSIGN_DUE_DATE
-  daysFromNow: number
-}
-
-export interface AddLabelAction extends BaseActionConfig {
-  type: ActionType.ADD_LABEL
-  labelId: string
-}
-
-export interface NotifyUserAction extends BaseActionConfig {
-  type: ActionType.NOTIFY_USER
-  userId: string
-  message: string
-}
-
-export type Action = SendEmailAction | MoveToColumnAction | AssignDueDateAction | AddLabelAction | NotifyUserAction
-
-// Rule interface matching the frontend structure
-export interface Rule {
-  id: string
-  name: string
-  enabled: boolean
-  trigger: {
-    type: TriggerType
-    config?: Record<string, any>
-  }
-  conditions: Array<{
-    type: ConditionType
-    config?: Record<string, any>
-  }>
-  action: {
-    type: ActionType
-    config?: Record<string, any>
-  }
-}
-
-export interface ColumnRules {
-  enabled: boolean
-  rules: Rule[]
-}
+import { Repository } from 'typeorm'
+import { InjectRepository } from '@nestjs/typeorm'
+import { CreateRuleDto } from '../dto/create-column-rules.dto'
+import { Rule, ColumnRules } from '../interfaces/rule.interface'
 
 @Injectable()
 export class ColumnRulesService {
-  constructor(private readonly mailService: MailService) {}
+  constructor(
+    private readonly mailService: MailService,
+    @InjectRepository(Card)
+    private readonly cardRepository: Repository<Card>,
+  ) {}
+
+  /**
+   * Transform rule DTO to proper structure matching the expected interfaces
+   */
+  transformRuleDto(ruleDto: CreateRuleDto): Rule {
+    // The rule has already been validated by the ColumnRulesValidationPipe
+    // We can now directly map it to our expected structure
+    return {
+      id: ruleDto.id,
+      name: ruleDto.name,
+      enabled: ruleDto.enabled,
+      trigger: {
+        type: ruleDto.trigger.type,
+        config: this.ensureDefaultValues(ruleDto.trigger.type, ruleDto.trigger.config || {}),
+      },
+      conditions: ruleDto.conditions.map((condition) => ({
+        type: condition.type,
+        config: condition.config || {},
+      })),
+      action: {
+        type: ruleDto.action.type,
+        config: ruleDto.action.config || {},
+      },
+    }
+  }
+
+  /**
+   * Ensure default values for specific trigger types
+   */
+  private ensureDefaultValues(type: TriggerType, config: Record<string, any>): Record<string, any> {
+    if (type === TriggerType.DUE_DATE_APPROACHING && config.daysBeforeDue === undefined) {
+      return { ...config, daysBeforeDue: 3 }
+    }
+
+    return config
+  }
 
   /**
    * Processes rules when a card is created
@@ -158,21 +91,18 @@ export class ColumnRulesService {
         if (!rule.enabled) continue
 
         // Check if the rule's trigger matches
-        if (
-          rule.trigger.type !== triggerType ||
-          !this.matchesTriggerContext(rule.trigger as unknown as Trigger, context)
-        ) {
+        if (rule.trigger.type !== triggerType || !this.matchesTriggerContext(rule.trigger, context)) {
           continue
         }
 
         // Check all conditions
-        const conditionsMet = this.evaluateConditions(card, rule.conditions as unknown as Condition[])
+        const conditionsMet = this.evaluateConditions(card, rule.conditions)
         if (!conditionsMet) {
           continue
         }
 
         // Execute the action
-        this.executeAction(card, rule.action as unknown as Action)
+        this.executeAction(card, rule.action)
       }
     }
   }
@@ -180,11 +110,11 @@ export class ColumnRulesService {
   /**
    * Checks if a trigger matches the provided context
    */
-  private matchesTriggerContext(trigger: Trigger, context: Record<string, any>): boolean {
+  private matchesTriggerContext(trigger: Rule['trigger'], context: Record<string, any>): boolean {
     switch (trigger.type) {
       case TriggerType.CARD_MOVED:
-        if ('fromColumnId' in trigger && trigger.fromColumnId) {
-          return trigger.fromColumnId === context.previousColumnId
+        if (trigger.config?.fromColumnId) {
+          return trigger.config.fromColumnId === context.previousColumnId
         }
         return true
       case TriggerType.DUE_DATE_APPROACHING:
@@ -198,7 +128,7 @@ export class ColumnRulesService {
   /**
    * Evaluates all conditions for a card
    */
-  private evaluateConditions(card: Card, conditions: Condition[]): boolean {
+  private evaluateConditions(card: Card, conditions: Rule['conditions']): boolean {
     if (conditions.length === 0) {
       return true // No conditions means all conditions are met
     }
@@ -216,7 +146,7 @@ export class ColumnRulesService {
   /**
    * Evaluates a single condition
    */
-  private evaluateCondition(card: Card, condition: Condition): boolean {
+  private evaluateCondition(card: Card, condition: Rule['conditions'][0]): boolean {
     switch (condition.type) {
       case ConditionType.HAS_CUSTOMER:
         return !!card.customer
@@ -224,9 +154,9 @@ export class ColumnRulesService {
         return !!card.dueDate
       case ConditionType.CUSTOM_FIELD_VALUE:
         // Check if the card has the specified custom field with the specified value
-        return this.checkCustomFieldValue(card, condition.fieldId, condition.value)
+        return this.checkCustomFieldValue(card, condition.config?.fieldId, condition.config?.value)
       case ConditionType.HAS_LABEL:
-        return this.checkHasLabel(card, condition.labelId)
+        return this.checkHasLabel(card, condition.config?.labelId)
       default:
         return false
     }
@@ -235,7 +165,9 @@ export class ColumnRulesService {
   /**
    * Checks if a card has a custom field with a specific value
    */
-  private checkCustomFieldValue(card: Card, fieldId: string, value: string): boolean {
+  private checkCustomFieldValue(card: Card, fieldId?: string, value?: string): boolean {
+    if (!fieldId || !value) return false
+
     // Access card.customFields safely
     const customFields = (card as any).customFields || []
     return customFields.some((field: any) => field.id === fieldId && field.value === value) as boolean
@@ -244,7 +176,9 @@ export class ColumnRulesService {
   /**
    * Checks if a card has a specific label
    */
-  private checkHasLabel(card: Card, labelId: string): boolean {
+  private checkHasLabel(card: Card, labelId?: string): boolean {
+    if (!labelId) return false
+
     // Access card.labels safely
     const labels = (card as any).labels || []
     return labels.some((label: any) => label.id === labelId) as boolean
@@ -253,7 +187,7 @@ export class ColumnRulesService {
   /**
    * Executes a single action
    */
-  private executeAction(card: Card, action: Action): void {
+  private executeAction(card: Card, action: Rule['action']): void {
     switch (action.type) {
       case ActionType.SEND_EMAIL:
         this.sendEmail(card, action)
@@ -273,12 +207,14 @@ export class ColumnRulesService {
     }
   }
 
-  private sendEmail(card: Card, action: SendEmailAction): void {
+  private sendEmail(card: Card, action: Rule['action']): void {
+    if (action.type !== ActionType.SEND_EMAIL) return
+
     // Implementation using MailService
     const emailData = {
-      to: action.recipient || this.determineRecipient(card),
+      to: action.config?.recipient || this.determineRecipient(card),
       subject: action.config?.subject || this.getEmailSubject(card, action.type),
-      templateId: action.config?.templateName || action.template || 'card-moved',
+      templateId: action.config?.templateName || 'card-moved',
       templateData: {
         cardName: card.name,
         cardDescription: card.description || '',
@@ -308,27 +244,43 @@ export class ColumnRulesService {
     }
   }
 
-  private moveCardToColumn(card: Card, action: MoveToColumnAction): void {
+  private moveCardToColumn(card: Card, action: Rule['action']): void {
+    if (action.type !== ActionType.MOVE_TO_COLUMN || !action.config?.columnId) return
+
     // Implementation would update the card's column
-    console.log(`Moving card ${card.id} to column ${action.columnId}`)
+    console.log(`Moving card ${card.id} to column ${action.config.columnId}`)
   }
 
-  private assignDueDate(card: Card, action: AssignDueDateAction): void {
+  private assignDueDate(card: Card, action: Rule['action']): void {
+    if (action.type !== ActionType.ASSIGN_DUE_DATE || !action.config?.daysFromNow) return
+
+    const daysFromNow = action.config.daysFromNow
     const dueDate = new Date()
-    dueDate.setDate(dueDate.getDate() + action.daysFromNow)
+    dueDate.setDate(dueDate.getDate() + daysFromNow)
 
     // Implementation would update the card's due date
     console.log(`Assigning due date ${dueDate.toISOString()} to card ${card.id}`)
   }
 
-  private addLabel(card: Card, action: AddLabelAction): void {
+  private async addLabel(card: Card, action: Rule['action']): Promise<void> {
+    if (action.type !== ActionType.ADD_LABEL || !action.config?.labelId) return
+
     // Implementation would add a label to the card
-    console.log(`Adding label ${action.labelId} to card ${card.id}`)
+    const labelId = action.config.labelId
+    console.log(`Adding label ${labelId} to card ${card.id}`)
+
+    // Add the label to the card (assuming labels is an array of strings)
+    if (!card.labels) {
+      card.labels = []
+    }
+    card.labels.push(labelId)
+    await this.cardRepository.save(card)
   }
 
-  private notifyUser(card: Card, action: NotifyUserAction): void {
+  private notifyUser(card: Card, action: Rule['action']): void {
+    if (action.type !== ActionType.NOTIFY_USER || !action.config?.userId || !action.config?.message) return
+
     // In a real implementation, this would connect to a notification system
-    // For now, we'll just log it
-    console.log(`Notifying user ${action.userId} about card ${card.id}: ${action.message}`)
+    console.log(`Notifying user ${action.config.userId} about card ${card.id}: ${action.config.message}`)
   }
 }
