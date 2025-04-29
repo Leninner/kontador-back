@@ -13,6 +13,7 @@ import { SentryModule } from './common/services/sentry/sentry.module'
 import { SentryInterceptor } from './common/interceptors/sentry.interceptor'
 import { DeclarationsModule } from './declarations/declarations.module'
 import { InvoicesModule } from './invoices/invoices.module'
+import { ReportsModule } from './reports/reports.module'
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { InvoicesModule } from './invoices/invoices.module'
     BoardsModule,
     DeclarationsModule,
     InvoicesModule,
+    ReportsModule,
     SentryModule,
   ],
   controllers: [AppController],
