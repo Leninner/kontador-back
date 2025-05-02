@@ -5,6 +5,12 @@ import { Comment } from './comment.entity'
 import { CardHistory } from './card-history.entity'
 import { Customer } from '../../customers/entities/customer.entity'
 
+export enum CardPriority {
+  LOW = 'LOW',
+  MEDIUM = 'MEDIUM',
+  HIGH = 'HIGH',
+}
+
 @Entity('cards')
 export class Card extends BaseEntity {
   @Index()
@@ -35,4 +41,7 @@ export class Card extends BaseEntity {
 
   @OneToMany(() => CardHistory, (history) => history.card, { cascade: true })
   history: CardHistory[]
+
+  @Column({ default: CardPriority.MEDIUM })
+  priority: CardPriority
 }

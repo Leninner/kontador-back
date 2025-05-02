@@ -13,6 +13,7 @@ import { MailService } from './services/mail.service'
 import { AuthModule } from '../auth/auth.module'
 import { ColumnRulesService } from './services/column-rules.service'
 import { ScheduledTasksService } from './services/scheduled-tasks.service'
+import { WhatsappTaskService } from './services/whatsapp-task.service'
 
 @Module({
   imports: [
@@ -22,7 +23,7 @@ import { ScheduledTasksService } from './services/scheduled-tasks.service'
     EmailModule,
   ],
   controllers: [BoardsController],
-  providers: [BoardsService, MailService, ColumnRulesService, ScheduledTasksService],
-  exports: [BoardsService],
+  providers: [BoardsService, MailService, ColumnRulesService, ScheduledTasksService, WhatsappTaskService],
+  exports: [BoardsService, WhatsappTaskService],
 })
 export class BoardsModule {}

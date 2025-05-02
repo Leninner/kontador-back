@@ -1,4 +1,4 @@
-import { IsEmail, IsString, MinLength, MaxLength, Matches } from 'class-validator'
+import { IsEmail, IsString, MinLength, MaxLength, Matches, IsNotEmpty, IsNumberString } from 'class-validator'
 import { ILoginDto, IRegisterDto } from '../../common/interfaces/auth.interface'
 
 export class LoginDto implements ILoginDto {
@@ -19,4 +19,14 @@ export class RegisterDto extends LoginDto implements IRegisterDto {
   @MinLength(2, { message: 'El nombre debe tener al menos 2 caracteres' })
   @MaxLength(50, { message: 'El nombre no debe exceder 50 caracteres' })
   name: string
+}
+
+export class VerifyDto {
+  @IsNotEmpty({ message: 'El código de país es requerido' })
+  @IsNumberString({}, { message: 'El código de país debe contener solo números' })
+  countryCode: string
+
+  @IsNotEmpty({ message: 'El número de teléfono es requerido' })
+  @IsNumberString({}, { message: 'El número de teléfono debe contener solo números' })
+  phoneNumber: string
 }

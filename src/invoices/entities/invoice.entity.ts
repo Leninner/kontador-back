@@ -25,7 +25,4 @@ export class Invoice extends BaseEntity {
 
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   iva: number
-
-  @Column({ nullable: true })
-  pdfUrl: string
 }

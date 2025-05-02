@@ -308,7 +308,6 @@ export class BoardsService {
   }
 
   async getColumn(id: string, user: User): Promise<Column> {
-    // Optimized query with better joins and select
     const column = await this.columnRepository
       .createQueryBuilder('column')
       .leftJoinAndSelect('column.cards', 'cards')
@@ -329,7 +328,6 @@ export class BoardsService {
   }
 
   async createCard(createCardDto: CreateCardDto, user: User): Promise<Card> {
-    // Optimized query with select
     const column = await this.columnRepository
       .createQueryBuilder('column')
       .innerJoin('column.board', 'board')
@@ -347,6 +345,7 @@ export class BoardsService {
       description: createCardDto.description,
       dueDate: createCardDto.dueDate,
       column,
+      priority: createCardDto.priority,
     })
 
     if (createCardDto.customerId) {

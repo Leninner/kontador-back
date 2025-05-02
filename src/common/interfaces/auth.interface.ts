@@ -5,6 +5,8 @@ export interface IUser {
   password: string
   createdAt: Date
   updatedAt: Date
+  phone?: string
+  phoneVerified: boolean
 }
 
 export interface IAuthResponse {
@@ -28,6 +30,11 @@ export interface IRegisterDto {
   name: string
   email: string
   password: string
+}
+
+export interface IVerifyDto {
+  countryCode: string
+  phoneNumber: string
 }
 
 export interface IJwtPayload {

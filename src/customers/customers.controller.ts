@@ -6,7 +6,7 @@ import { FindAllCustomersDto } from './dto/find-all-customers.dto'
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'
 import { CurrentUser } from '../auth/decorators/current-user.decorator'
 import { User } from '../auth/entities/user.entity'
-import { ApiResponseDto } from '../common/dto/api-response.dto'
+import { ApiErrorDto, ApiResponseDto } from '../common/dto/api-response.dto'
 
 @Controller('customers')
 @UseGuards(JwtAuthGuard)
@@ -14,8 +14,22 @@ export class CustomersController {
   constructor(private readonly customersService: CustomersService) {}
 
   @Post()
-  create(@Body() createCustomerDto: CreateCustomerDto, @CurrentUser() accountant: User) {
-    return this.customersService.create(createCustomerDto, accountant)
+  async create(@Body() createCustomerDto: CreateCustomerDto, @CurrentUser() accountant: User) {
+    try {
+      const customer = await this.customersService.create(createCustomerDto, accountant)
+      return new ApiResponseDto({
+        success: true,
+        data: customer,
+      })
+    } catch (error) {
+      return new ApiResponseDto({
+        success: false,
+        error: new ApiErrorDto({
+          message: error.message,
+          code: 'CUSTOMER_CREATION_ERROR',
+        }),
+      })
+    }
   }
 
   @Get()

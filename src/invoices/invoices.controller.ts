@@ -1,18 +1,4 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Patch,
-  Param,
-  Delete,
-  Query,
-  UseInterceptors,
-  UploadedFile,
-  Res,
-} from '@nestjs/common'
-import { FileInterceptor } from '@nestjs/platform-express'
-import { Response } from 'express'
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query } from '@nestjs/common'
 import { InvoicesService } from './invoices.service'
 import { CreateInvoiceDto } from './dto/create-invoice.dto'
 import { UpdateInvoiceDto } from './dto/update-invoice.dto'
@@ -24,8 +10,7 @@ export class InvoicesController {
   constructor(private readonly invoicesService: InvoicesService) {}
 
   @Post()
-  @UseInterceptors(FileInterceptor('pdfFile'))
-  async create(@Body() createInvoiceDto: CreateInvoiceDto, @UploadedFile() pdfFile: Express.Multer.File) {
+  async create(@Body() createInvoiceDto: CreateInvoiceDto) {
     // Convert numeric strings to numbers for validation
     if (typeof createInvoiceDto.amount === 'string') {
       createInvoiceDto.amount = parseFloat(createInvoiceDto.amount)
@@ -39,7 +24,7 @@ export class InvoicesController {
       createInvoiceDto.iva = parseFloat(createInvoiceDto.iva)
     }
 
-    const data = await this.invoicesService.create(createInvoiceDto, pdfFile)
+    const data = await this.invoicesService.create(createInvoiceDto)
     return new ApiResponseDto({ success: true, data })
   }
 
@@ -56,12 +41,7 @@ export class InvoicesController {
   }
 
   @Patch(':id')
-  @UseInterceptors(FileInterceptor('pdfFile'))
-  async update(
-    @Param('id') id: string,
-    @Body() updateInvoiceDto: UpdateInvoiceDto,
-    @UploadedFile() pdfFile?: Express.Multer.File,
-  ) {
+  async update(@Param('id') id: string, @Body() updateInvoiceDto: UpdateInvoiceDto) {
     // Convert numeric strings to numbers for validation
     if (typeof updateInvoiceDto.amount === 'string') {
       updateInvoiceDto.amount = parseFloat(updateInvoiceDto.amount)
@@ -75,7 +55,7 @@ export class InvoicesController {
       updateInvoiceDto.iva = parseFloat(updateInvoiceDto.iva)
     }
 
-    const data = await this.invoicesService.update(id, updateInvoiceDto, pdfFile)
+    const data = await this.invoicesService.update(id, updateInvoiceDto)
     return new ApiResponseDto({ success: true, data })
   }
 
@@ -83,17 +63,5 @@ export class InvoicesController {
   async remove(@Param('id') id: string) {
     await this.invoicesService.remove(id)
     return new ApiResponseDto({ success: true })
-  }
-
-  @Get(':id/pdf')
-  async downloadPdf(@Param('id') id: string, @Res() res: Response) {
-    const file = await this.invoicesService.getPdfFile(id)
-
-    res.set({
-      'Content-Type': file.contentType,
-      'Content-Disposition': `inline; filename="${file.filename}"`,
-    })
-
-    res.send(file.buffer)
   }
 }

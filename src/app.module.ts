@@ -14,6 +14,7 @@ import { SentryInterceptor } from './common/interceptors/sentry.interceptor'
 import { DeclarationsModule } from './declarations/declarations.module'
 import { InvoicesModule } from './invoices/invoices.module'
 import { ReportsModule } from './reports/reports.module'
+import { OcrModule } from './ocr/ocr.module'
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { ReportsModule } from './reports/reports.module'
     InvoicesModule,
     ReportsModule,
     SentryModule,
+    OcrModule,
   ],
   controllers: [AppController],
   providers: [

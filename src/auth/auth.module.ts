@@ -9,6 +9,7 @@ import { JwtStrategy } from './strategies/jwt.strategy'
 import { User } from './entities/user.entity'
 import { Customer } from '../customers/entities/customer.entity'
 import { BoardsModule } from '../boards/boards.module'
+import { WhatsappModule } from '../whatsapp/whatsapp.module'
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { BoardsModule } from '../boards/boards.module'
       inject: [ConfigService],
     }),
     forwardRef(() => BoardsModule),
+    WhatsappModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy, ConfigService],

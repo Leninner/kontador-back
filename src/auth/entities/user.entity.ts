@@ -17,6 +17,12 @@ export class User extends BaseEntity implements IUser {
   @Column()
   password: string
 
+  @Column({ nullable: true })
+  phone: string
+
+  @Column({ default: false })
+  phoneVerified: boolean
+
   @OneToMany(() => Customer, (customer) => customer.accountant)
   customers: Customer[]
 

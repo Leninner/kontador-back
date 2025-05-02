@@ -1,4 +1,5 @@
-import { IsDateString, IsOptional, IsString, IsUUID } from 'class-validator'
+import { IsDateString, IsEnum, IsOptional, IsString, IsUUID } from 'class-validator'
+import { CardPriority } from '../entities/card.entity'
 
 export class UpdateCardDto {
   @IsOptional()
@@ -20,4 +21,8 @@ export class UpdateCardDto {
   @IsOptional()
   @IsUUID()
   customerId?: string
+
+  @IsOptional()
+  @IsEnum(CardPriority)
+  priority?: CardPriority
 }

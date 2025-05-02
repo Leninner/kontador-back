@@ -6,7 +6,7 @@ import { CreateCustomerDto } from './dto/create-customer.dto'
 import { UpdateCustomerDto } from './dto/update-customer.dto'
 import { FindAllCustomersDto } from './dto/find-all-customers.dto'
 import { User } from '../auth/entities/user.entity'
-import { ApiErrorDto, ApiResponseDto } from '../common/dto/api-response.dto'
+import { ApiResponseDto } from '../common/dto/api-response.dto'
 import * as Sentry from '@sentry/node'
 import { BasePaginationService } from '../common/services/base-pagination.service'
 
@@ -19,17 +19,14 @@ export class CustomersService extends BasePaginationService<Customer> {
     super(customerRepository)
   }
 
-  async create(createCustomerDto: CreateCustomerDto, accountant: User): Promise<ApiResponseDto<Customer>> {
+  async create(createCustomerDto: CreateCustomerDto, accountant: User): Promise<Customer> {
     try {
       const customer = this.customerRepository.create({
         ...createCustomerDto,
         accountant: { id: accountant.id } as User,
       })
 
-      return new ApiResponseDto({
-        success: true,
-        data: await this.customerRepository.save(customer),
-      })
+      return await this.customerRepository.save(customer)
     } catch (error) {
       Sentry.captureException(error)
       Sentry.captureMessage('Error creating customer', {
@@ -40,14 +37,17 @@ export class CustomersService extends BasePaginationService<Customer> {
         },
       })
 
-      return new ApiResponseDto({
-        success: false,
-        error: new ApiErrorDto({
-          message: 'Error creating customer',
-          code: 'CUSTOMER_CREATION_ERROR',
-        }),
-      })
+      throw new Error('Error creating customer')
     }
+  }
+
+  async findByDocumentId(documentId: string): Promise<Customer | null> {
+    return this.customerRepository
+      .createQueryBuilder('customer')
+      .leftJoin('customer.accountant', 'accountant')
+      .select(['customer', 'accountant.id'])
+      .where('customer.documentId = :documentId', { documentId })
+      .getOne()
   }
 
   async findAll(accountant: User, findAllCustomersDto: FindAllCustomersDto): Promise<ApiResponseDto<Customer[]>> {
