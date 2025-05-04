@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { IEmailAdapter, EmailMessage } from '../../interfaces/email.interface'
 import * as SendGrid from '@sendgrid/mail'
+import * as Sentry from '@sentry/node'
 
 @Injectable()
 export class SendGridAdapter implements IEmailAdapter {
@@ -60,6 +61,7 @@ export class SendGridAdapter implements IEmailAdapter {
       })
       return true
     } catch (error) {
+      Sentry.captureException(error)
       console.error('Error sending email via SendGrid:', JSON.stringify(error.response?.body || error))
       if (error.response?.body?.errors) {
         console.error('SendGrid error details:', JSON.stringify(error.response.body.errors))

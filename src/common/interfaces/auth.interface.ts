@@ -7,6 +7,10 @@ export interface IUser {
   updatedAt: Date
   phone?: string
   phoneVerified: boolean
+  licenseNumber?: string
+  taxIdentificationNumber?: string
+  specialization?: string
+  languages?: string
 }
 
 export interface IAuthResponse {
@@ -35,6 +39,16 @@ export interface IRegisterDto {
 export interface IVerifyDto {
   countryCode: string
   phoneNumber: string
+}
+
+export interface IUpdateUserDto {
+  name?: string
+  email?: string
+  phone?: string
+  licenseNumber?: string
+  taxIdentificationNumber?: string
+  specialization?: string
+  languages?: string
 }
 
 export interface IJwtPayload {

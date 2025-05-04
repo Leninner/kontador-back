@@ -23,6 +23,18 @@ export class User extends BaseEntity implements IUser {
   @Column({ default: false })
   phoneVerified: boolean
 
+  @Column({ nullable: true })
+  licenseNumber: string
+
+  @Column({ nullable: true })
+  taxIdentificationNumber: string
+
+  @Column({ nullable: true })
+  specialization: string
+
+  @Column({ nullable: true })
+  languages: string
+
   @OneToMany(() => Customer, (customer) => customer.accountant)
   customers: Customer[]
 

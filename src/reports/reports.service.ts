@@ -5,7 +5,21 @@ import { Customer } from '../customers/entities/customer.entity'
 import { Invoice } from '../invoices/entities/invoice.entity'
 import { Declaration } from '../declarations/entities/declaration.entity'
 import { Board } from '../boards/entities/board.entity'
-import { startOfMonth, endOfMonth, subMonths, subDays, formatDate } from 'date-fns'
+import {
+  startOfMonth,
+  endOfMonth,
+  subMonths,
+  subDays,
+  formatDate,
+  endOfYear,
+  startOfYear,
+  endOfQuarter,
+  startOfQuarter,
+  subQuarters,
+  subYears,
+} from 'date-fns'
+
+export type Period = 'month' | 'quarter' | 'year'
 
 @Injectable()
 export class ReportsService {
@@ -35,28 +49,53 @@ export class ReportsService {
     }
   }
 
-  async getCustomerGrowthRate(accountantId: string, periodType: 'month' | 'quarter' | 'year' = 'month'): Promise<any> {
+  async getCustomerGrowthRate(accountantId: string, periodType: Period = 'month', period?: string): Promise<any> {
     const now = new Date()
     let currentPeriodStart: Date
     let previousPeriodStart: Date
     let currentPeriodEnd: Date
     let previousPeriodEnd: Date
 
-    if (periodType === 'month') {
-      currentPeriodStart = startOfMonth(now)
-      currentPeriodEnd = endOfMonth(now)
-      previousPeriodStart = startOfMonth(subMonths(now, 1))
-      previousPeriodEnd = endOfMonth(subMonths(now, 1))
-    } else if (periodType === 'quarter') {
-      currentPeriodStart = startOfMonth(now)
-      currentPeriodEnd = endOfMonth(now)
-      previousPeriodStart = startOfMonth(subMonths(now, 3))
-      previousPeriodEnd = endOfMonth(subMonths(now, 3))
+    // If a specific period is provided, parse it
+    if (period) {
+      const [year, month] = period.split('-').map(Number)
+
+      if (periodType === 'month') {
+        currentPeriodStart = new Date(year, month - 1, 1)
+        currentPeriodEnd = endOfMonth(currentPeriodStart)
+        previousPeriodStart = startOfMonth(subMonths(currentPeriodStart, 1))
+        previousPeriodEnd = endOfMonth(subMonths(currentPeriodStart, 1))
+      } else if (periodType === 'quarter') {
+        // Calculate the quarter based on the month
+        const quarterStartMonth = Math.floor((month - 1) / 3) * 3
+        currentPeriodStart = new Date(year, quarterStartMonth, 1)
+        currentPeriodEnd = endOfQuarter(currentPeriodStart)
+        previousPeriodStart = startOfQuarter(subQuarters(currentPeriodStart, 1))
+        previousPeriodEnd = endOfQuarter(subQuarters(currentPeriodStart, 1))
+      } else {
+        currentPeriodStart = new Date(year, 0, 1)
+        currentPeriodEnd = endOfYear(currentPeriodStart)
+        previousPeriodStart = startOfYear(subYears(currentPeriodStart, 1))
+        previousPeriodEnd = endOfYear(subYears(currentPeriodStart, 1))
+      }
     } else {
-      currentPeriodStart = startOfMonth(now)
-      currentPeriodEnd = endOfMonth(now)
-      previousPeriodStart = startOfMonth(subMonths(now, 12))
-      previousPeriodEnd = endOfMonth(subMonths(now, 12))
+      // Use current date if no specific period is provided
+      if (periodType === 'month') {
+        currentPeriodStart = startOfMonth(now)
+        currentPeriodEnd = endOfMonth(now)
+        previousPeriodStart = startOfMonth(subMonths(now, 1))
+        previousPeriodEnd = endOfMonth(subMonths(now, 1))
+      } else if (periodType === 'quarter') {
+        currentPeriodStart = startOfQuarter(now)
+        currentPeriodEnd = endOfQuarter(now)
+        previousPeriodStart = startOfQuarter(subQuarters(now, 1))
+        previousPeriodEnd = endOfQuarter(subQuarters(now, 1))
+      } else {
+        currentPeriodStart = startOfYear(now)
+        currentPeriodEnd = endOfYear(now)
+        previousPeriodStart = startOfYear(subYears(now, 1))
+        previousPeriodEnd = endOfYear(subYears(now, 1))
+      }
     }
 
     const currentPeriodCustomers = await this.customerRepository.count({
@@ -95,21 +134,44 @@ export class ReportsService {
     }
   }
 
-  async getInvoiceStatistics(accountantId: string, period: string): Promise<any> {
-    // Parse period YYYY-MM
-    const datePeriod = formatDate(period, 'yyyy-MM')
-    const periodStart = startOfMonth(datePeriod)
-    const periodEnd = endOfMonth(datePeriod)
+  async getInvoiceStatistics(accountantId: string, periodType: Period = 'month', period?: string): Promise<any> {
+    let periodStart: Date
+    let periodEnd: Date
+    const now = new Date()
 
-    // Get all customers for this accountant
+    if (period) {
+      const [year, month] = period.split('-').map(Number)
+
+      if (periodType === 'month') {
+        periodStart = new Date(year, month - 1, 1)
+        periodEnd = endOfMonth(periodStart)
+      } else if (periodType === 'quarter') {
+        const quarterStartMonth = Math.floor((month - 1) / 3) * 3
+        periodStart = new Date(year, quarterStartMonth, 1)
+        periodEnd = endOfQuarter(periodStart)
+      } else {
+        periodStart = new Date(year, 0, 1)
+        periodEnd = endOfYear(periodStart)
+      }
+    } else {
+      if (periodType === 'month') {
+        periodStart = startOfMonth(now)
+        periodEnd = endOfMonth(now)
+      } else if (periodType === 'quarter') {
+        periodStart = startOfQuarter(now)
+        periodEnd = endOfQuarter(now)
+      } else {
+        periodStart = startOfYear(now)
+        periodEnd = endOfYear(now)
+      }
+    }
+
     const customers = await this.customerRepository.find({
       where: { accountant: { id: accountantId } },
       select: ['id'],
     })
-
     const customerIds = customers.map((customer) => customer.id)
 
-    // Find all invoices for these customers in the given period
     const invoices = await this.invoiceRepository.find({
       where: {
         customerId: In(customerIds),
@@ -117,7 +179,6 @@ export class ReportsService {
       },
     })
 
-    // Calculate statistics
     const totalInvoices = invoices.length
     const totalAmount = invoices.reduce((sum, invoice) => sum + Number(invoice.amount), 0)
     const averageAmount = totalInvoices > 0 ? totalAmount / totalInvoices : 0
@@ -126,15 +187,24 @@ export class ReportsService {
 
     return {
       period,
+      periodType,
+      periodRange: {
+        start: formatDate(periodStart, 'yyyy-MM-dd'),
+        end: formatDate(periodEnd, 'yyyy-MM-dd'),
+      },
       totalInvoices,
-      totalAmount: parseFloat(totalAmount.toFixed(2)),
-      averageAmount: parseFloat(averageAmount.toFixed(2)),
-      totalTax: parseFloat(totalTax.toFixed(2)),
-      totalIva: parseFloat(totalIva.toFixed(2)),
+      totalAmount,
+      averageAmount,
+      totalTax,
+      totalIva,
     }
   }
 
-  async getDeclarationComplianceRate(accountantId: string, period: string): Promise<any> {
+  async getDeclarationComplianceRate(
+    accountantId: string,
+    periodType: Period = 'month',
+    period?: string,
+  ): Promise<any> {
     // Get all customers for this accountant
     const customers = await this.customerRepository.find({
       where: { accountant: { id: accountantId } },
@@ -160,6 +230,7 @@ export class ReportsService {
 
     return {
       period,
+      periodType,
       totalCustomers,
       submittedDeclarations: submittedDeclarations.length,
       complianceRate: parseFloat(complianceRate.toFixed(2)),

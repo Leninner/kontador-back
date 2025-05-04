@@ -26,7 +26,7 @@ export class ReportsController {
 
   @Get('growth-rate')
   async getCustomerGrowthRate(@CurrentUser() user: User, @Query() query: GrowthRateQueryDto) {
-    const data = await this.reportsService.getCustomerGrowthRate(user.id, query.periodType)
+    const data = await this.reportsService.getCustomerGrowthRate(user.id, query.periodType, query.period)
 
     return new ApiResponseDto({
       success: true,
@@ -42,7 +42,7 @@ export class ReportsController {
       period = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
     }
 
-    const data = await this.reportsService.getInvoiceStatistics(user.id, period)
+    const data = await this.reportsService.getInvoiceStatistics(user.id, query.periodType, period)
 
     return new ApiResponseDto({
       success: true,
@@ -58,7 +58,7 @@ export class ReportsController {
       period = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
     }
 
-    const data = await this.reportsService.getDeclarationComplianceRate(user.id, period)
+    const data = await this.reportsService.getDeclarationComplianceRate(user.id, query.periodType, period)
 
     return new ApiResponseDto({
       success: true,

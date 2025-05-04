@@ -10,6 +10,7 @@ import { User } from './entities/user.entity'
 import { Customer } from '../customers/entities/customer.entity'
 import { BoardsModule } from '../boards/boards.module'
 import { WhatsappModule } from '../whatsapp/whatsapp.module'
+import { UserService } from './services/user.service'
 
 @Module({
   imports: [
@@ -28,7 +29,7 @@ import { WhatsappModule } from '../whatsapp/whatsapp.module'
     WhatsappModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, ConfigService],
+  providers: [AuthService, JwtStrategy, ConfigService, UserService],
   exports: [AuthService],
 })
 export class AuthModule {}

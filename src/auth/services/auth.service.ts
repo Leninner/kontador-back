@@ -9,6 +9,7 @@ import { ApiResponseDto } from '../../common/dto/api-response.dto'
 import { BoardsService } from '../../boards/boards.service'
 import * as Sentry from '@sentry/node'
 import { TwilioWhatsappRepository } from '../../whatsapp/infrastructure/TwilioWhatsappRepository'
+import { UpdateUserDto } from '../dto/update-user.dto'
 
 @Injectable()
 export class AuthService {
@@ -118,6 +119,7 @@ export class AuthService {
           email: user.email,
           name: user.name,
           phoneVerified: user.phoneVerified,
+          phone: user.phone,
         },
         token,
       },
@@ -133,10 +135,8 @@ export class AuthService {
   }
 
   async verify(dto: IVerifyDto, user: User): Promise<IAuthResponse> {
-    // Format phone number (country code + phone number without the + symbol)
     const formattedPhone = `${dto.countryCode}${dto.phoneNumber}`
 
-    // Check if the phone number is already associated with another user
     const existingUserWithPhone = await this.userRepository.findOne({
       where: { phone: formattedPhone },
     })
@@ -154,13 +154,31 @@ export class AuthService {
     user.phone = formattedPhone
 
     try {
-      const verificationMessage = 'Tu número de WhatsApp ha sido verificado exitosamente en Kontador'
+      // Welcome message with OCR and AI task creation instructions
+      const welcomeMessage = `✅ *¡Tu número de WhatsApp ha sido verificado exitosamente en Kontador!*
+
+🔍 *Funcionalidad de OCR:*
+Simplemente envía una imagen de tu factura y nuestro sistema extraerá automáticamente toda la información relevante.
+📸 → 📄 → ✓
+
+🤖 *Creación de tareas con IA:*
+Para crear una nueva tarea, envía un mensaje con:
+• 📝 Contexto de la tarea
+• 🆔 Cédula o RUC del cliente
+• ⭐ Prioridad: 
+  🟢 Baja
+  🟡 Media
+  🔴 Alta
+• 📋 Lo que necesitas realizar
+
+_Ejemplo: "Necesito preparar declaración mensual del IVA para cliente 1234567890, prioridad alta, para la próxima semana."_
+      `
+
       await this.whatsappRepository.sendMessage({
         to: formattedPhone,
-        message: verificationMessage,
+        message: welcomeMessage,
       })
 
-      // Update user's phone verification status
       user.phoneVerified = true
       await this.userRepository.save(user)
 
@@ -187,11 +205,85 @@ export class AuthService {
 
       Sentry.captureException(error)
 
-      throw new UnauthorizedException({
+      throw new ConflictException({
         success: false,
         error: {
           message: 'Error al verificar el número de WhatsApp',
           code: 'VERIFICATION_FAILED',
+        },
+      })
+    }
+  }
+
+  async updateUser(dto: UpdateUserDto, user: User): Promise<IAuthResponse> {
+    try {
+      // If email is being updated, check if it's already in use
+      if (dto.email && dto.email !== user.email) {
+        const existingUser = await this.userRepository.findOne({
+          where: { email: dto.email },
+        })
+
+        if (existingUser) {
+          throw new ConflictException({
+            success: false,
+            error: {
+              message: 'El email ya está en uso',
+              code: 'EMAIL_EXISTS',
+            },
+          })
+        }
+      }
+
+      // If phone is being updated, reset phoneVerified flag
+      if (dto.phone && dto.phone !== user.phone) {
+        user.phoneVerified = false
+      }
+
+      // Update user properties
+      Object.assign(user, {
+        ...dto,
+      })
+
+      // Save updated user
+      await this.userRepository.save(user)
+
+      // Generate new token with updated information
+      const token = this.generateToken(user)
+
+      return new ApiResponseDto({
+        success: true,
+        data: {
+          user: {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            phone: user.phone,
+            phoneVerified: user.phoneVerified,
+            licenseNumber: user.licenseNumber,
+            taxIdentificationNumber: user.taxIdentificationNumber,
+            specialization: user.specialization,
+            languages: user.languages,
+          },
+          token,
+        },
+      })
+    } catch (error) {
+      Sentry.setTags({
+        user_id: user.id,
+        email: user.email,
+      })
+
+      Sentry.captureException(error)
+
+      if (error instanceof ConflictException) {
+        throw error
+      }
+
+      throw new UnauthorizedException({
+        success: false,
+        error: {
+          message: 'Error al actualizar el perfil',
+          code: 'UPDATE_FAILED',
         },
       })
     }

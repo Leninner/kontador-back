@@ -427,6 +427,27 @@ export class BoardsService {
       }
     }
 
+    if (updateCardDto.priority !== undefined && updateCardDto.priority !== card.priority) {
+      await this.createCardHistory(
+        card,
+        user,
+        HistoryActionType.PRIORITY_CHANGED,
+        {
+          priority: {
+            old: card.priority,
+            new: updateCardDto.priority,
+          },
+        },
+        `Prioridad ${updateCardDto.priority ? 'cambiada' : 'eliminada'}`,
+      )
+
+      changes.priority = {
+        old: card.priority,
+        new: updateCardDto.priority,
+      }
+      card.priority = updateCardDto.priority
+    }
+
     // Handle moving card to another column
     if (updateCardDto.columnId && updateCardDto.columnId !== card.column.id) {
       // Store the old column for notification

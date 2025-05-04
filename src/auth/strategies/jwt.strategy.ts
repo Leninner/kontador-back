@@ -28,7 +28,21 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
   async validate(
     payload: IJwtPayload,
-  ): Promise<Omit<User, 'password' | 'createdAt' | 'updatedAt' | 'customers' | 'board' | 'deletedAt'>> {
+  ): Promise<
+    Omit<
+      User,
+      | 'password'
+      | 'createdAt'
+      | 'updatedAt'
+      | 'customers'
+      | 'board'
+      | 'deletedAt'
+      | 'licenseNumber'
+      | 'taxIdentificationNumber'
+      | 'specialization'
+      | 'languages'
+    >
+  > {
     const user = await this.userRepository.findOne({
       where: { id: payload.sub, deletedAt: IsNull() },
     })

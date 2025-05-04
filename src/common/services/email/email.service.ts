@@ -50,7 +50,6 @@ export class EmailService {
     templateData: Partial<TemplateDataMap[T]>,
     from?: string,
   ): Promise<boolean> {
-    // Validar los datos de la plantilla
     const validatedData = this.templateValidator.validateTemplateData(templateName, templateData)
 
     const message = createTemplateEmail(to, subject, templateName, validatedData, from)

@@ -42,7 +42,6 @@ export class TemplateValidatorService {
    * Validación de plantilla card-moved
    */
   private validateCardMovedTemplate(data: Partial<CardMovedTemplateData>): CardMovedTemplateData {
-    // Verificar y completar objetos card, customer, accountant, columnas
     const card: CardInfo = this.validateCardInfo(data.card)
     const customer: CustomerInfo = this.validateCustomerInfo(data.customer)
     const accountant: AccountantInfo = this.validateAccountantInfo(data.accountant)
