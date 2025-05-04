@@ -1,4 +1,4 @@
-import { IsDateString, IsEnum, IsOptional, IsString, IsUUID } from 'class-validator'
+import { IsArray, IsDateString, IsEnum, IsOptional, IsString, IsUUID } from 'class-validator'
 import { CardPriority } from '../entities/card.entity'
 
 export class UpdateCardDto {
@@ -25,4 +25,9 @@ export class UpdateCardDto {
   @IsOptional()
   @IsEnum(CardPriority)
   priority?: CardPriority
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  labels?: string[]
 }

@@ -169,9 +169,10 @@ Para crear una nueva tarea, envía un mensaje con:
   🟢 Baja
   🟡 Media
   🔴 Alta
+• 🏷️ Etiquetas: sepáralas con hashtags (#impuestos #mensual #declaración)
 • 📋 Lo que necesitas realizar
 
-_Ejemplo: "Necesito preparar declaración mensual del IVA para cliente 1234567890, prioridad alta, para la próxima semana."_
+_Ejemplo: "Necesito preparar declaración mensual del IVA para cliente 1234567890, prioridad alta, #impuestos #mensual para la próxima semana."_
       `
 
       await this.whatsappRepository.sendMessage({

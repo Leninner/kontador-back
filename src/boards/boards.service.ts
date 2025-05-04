@@ -448,6 +448,11 @@ export class BoardsService {
       card.priority = updateCardDto.priority
     }
 
+    if (updateCardDto.labels !== undefined && updateCardDto.labels !== card.labels) {
+      changes.labels = { old: card.labels, new: updateCardDto.labels }
+      card.labels = updateCardDto.labels
+    }
+
     // Handle moving card to another column
     if (updateCardDto.columnId && updateCardDto.columnId !== card.column.id) {
       // Store the old column for notification

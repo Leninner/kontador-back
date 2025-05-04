@@ -90,7 +90,6 @@ export class BoardsController {
 
   @Put('cards/:id')
   async updateCard(@Param('id') id: string, @Body() updateCardDto: UpdateCardDto, @CurrentUser() user: User) {
-    console.log('updateCardDto', updateCardDto, 'id', id, 'user', user)
     const card = await this.boardsService.updateCard(id, updateCardDto, user)
 
     return new ApiResponseDto({
