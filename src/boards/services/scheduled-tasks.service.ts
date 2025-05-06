@@ -1,5 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common'
-import { Cron } from '@nestjs/schedule'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { Card } from '../entities/card.entity'
@@ -20,13 +19,12 @@ export class ScheduledTasksService {
 
   /**
    * Check for cards with approaching due dates
-   * Runs every day at 8AM UTC-5 (13:00 UTC)
+   * @param targetDate The reference date to check from (defaults to today)
    */
-  @Cron('0 13 * * *')
-  async checkDueDateApproaching() {
+  async checkDueDateApproaching(targetDate?: Date) {
     this.logger.log('Checking for cards with approaching due dates')
 
-    const today = new Date()
+    const today = targetDate || new Date()
     today.setHours(0, 0, 0, 0)
 
     const tomorrow = new Date(today)
@@ -41,8 +39,8 @@ export class ScheduledTasksService {
       .innerJoinAndSelect('card.column', 'column')
       .leftJoinAndSelect('card.customer', 'customer')
       .where('card.dueDate BETWEEN :tomorrow AND :fiveDaysLater', {
-        tomorrow,
-        fiveDaysLater,
+        tomorrow: tomorrow.toISOString(),
+        fiveDaysLater: fiveDaysLater.toISOString(),
       })
       .andWhere('column.rules IS NOT NULL')
       .andWhere("column.rules->>'enabled' = :enabled", { enabled: 'true' })
@@ -55,16 +53,25 @@ export class ScheduledTasksService {
     this.logger.log(`Found ${cards.length} cards with approaching due dates`)
     if (cards.length === 0) {
       this.logger.log('No cards with approaching due dates found')
-      return
+      return {
+        status: 'success',
+        message: 'No cards with approaching due dates found',
+        count: 0,
+      }
     }
 
     const processingPromises = cards.map((card) => this.columnRulesService.processDueDateApproaching(card))
     await Promise.all(processingPromises)
+
+    return {
+      status: 'success',
+      message: `Processed ${cards.length} cards with approaching due dates`,
+      count: cards.length,
+    }
   }
 
-  @Cron('0 14 * * *')
-  async notifyUpcomingDueDateToAccountant() {
-    const today = new Date()
+  async notifyUpcomingDueDateToAccountant(targetDate?: Date) {
+    const today = targetDate || new Date()
     today.setHours(0, 0, 0, 0)
 
     const endOfDay = new Date(today)
@@ -75,12 +82,21 @@ export class ScheduledTasksService {
       .innerJoinAndSelect('card.column', 'column')
       .leftJoinAndSelect('card.customer', 'customer')
       .leftJoinAndSelect('customer.accountant', 'accountant')
-      .where('card.dueDate BETWEEN :startOfDay AND :endOfDay', {
-        startOfDay: today,
-        endOfDay: endOfDay,
-      })
+      .where('DATE(card.dueDate) = DATE(:today)', { today: endOfDay.toISOString().split('T')[0] })
       .andWhere('customer.accountant IS NOT NULL')
       .getMany()
+
+    if (cards.length === 0) {
+      const queryParams = {
+        startOfDay: today.toISOString(),
+        endOfDay: endOfDay.toISOString(),
+      }
+      this.logger.log(`Query parameters: ${JSON.stringify(queryParams)}`)
+
+      // Check if there are any cards with due dates at all
+      const totalCards = await this.cardsRepository.count()
+      this.logger.log(`Total cards in database: ${totalCards}`)
+    }
 
     // Agrupar tarjetas por contador
     const cardsByAccountant = cards.reduce((acc, card) => {
@@ -100,7 +116,11 @@ export class ScheduledTasksService {
     this.logger.log(`Found ${cards.length} cards with upcoming due dates`)
     if (cards.length === 0) {
       this.logger.log('No cards with upcoming due dates found')
-      return
+      return {
+        status: 'success',
+        message: 'No cards with upcoming due dates found',
+        count: 0,
+      }
     }
 
     const promises = Object.values(cardsByAccountant).map(({ accountant, cards }) =>
@@ -123,5 +143,12 @@ export class ScheduledTasksService {
     )
 
     await Promise.all(promises)
+
+    return {
+      status: 'success',
+      message: `Notified accountants about ${cards.length} cards with upcoming due dates`,
+      count: cards.length,
+      accountantCount: Object.keys(cardsByAccountant).length,
+    }
   }
 }

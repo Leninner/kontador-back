@@ -14,6 +14,7 @@ import { AuthModule } from '../auth/auth.module'
 import { ColumnRulesService } from './services/column-rules.service'
 import { ScheduledTasksService } from './services/scheduled-tasks.service'
 import { WhatsappTaskService } from './services/whatsapp-task.service'
+import { ScheduledTasksController } from './controllers/scheduled-tasks.controller'
 
 @Module({
   imports: [
@@ -22,7 +23,7 @@ import { WhatsappTaskService } from './services/whatsapp-task.service'
     forwardRef(() => AuthModule),
     EmailModule,
   ],
-  controllers: [BoardsController],
+  controllers: [BoardsController, ScheduledTasksController],
   providers: [BoardsService, MailService, ColumnRulesService, ScheduledTasksService, WhatsappTaskService],
   exports: [BoardsService, WhatsappTaskService],
 })
