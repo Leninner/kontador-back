@@ -157,23 +157,23 @@ export class AuthService {
       // Welcome message with OCR and AI task creation instructions
       const welcomeMessage = `✅ *¡Tu número de WhatsApp ha sido verificado exitosamente en Kontador!*
 
-🔍 *Funcionalidad de OCR:*
-Simplemente envía una imagen de tu factura y nuestro sistema extraerá automáticamente toda la información relevante.
-📸 → 📄 → ✓
+          🔍 *Funcionalidad de OCR:*
+          Simplemente envía una imagen de tu factura y nuestro sistema extraerá automáticamente toda la información relevante.
+          📸 → 📄 → ✓
 
-🤖 *Creación de tareas con IA:*
-Para crear una nueva tarea, envía un mensaje con:
-• 📝 Contexto de la tarea
-• 🆔 Cédula o RUC del cliente
-• ⭐ Prioridad: 
-  🟢 Baja
-  🟡 Media
-  🔴 Alta
-• 🏷️ Etiquetas: sepáralas con hashtags (#impuestos #mensual #declaración)
-• 📋 Lo que necesitas realizar
+          🤖 *Creación de tareas con IA:*
+          Para crear una nueva tarea, envía un mensaje con:
+          • 📝 Contexto de la tarea
+          • 🆔 Cédula o RUC del cliente
+          • ⭐ Prioridad: 
+            🟢 Baja
+            🟡 Media
+            🔴 Alta
+          • 🏷️ Etiquetas: sepáralas con hashtags (#impuestos #mensual #declaración)
+          • 📋 Lo que necesitas realizar
 
-_Ejemplo: "Necesito preparar declaración mensual del IVA para cliente 1234567890, prioridad alta, #impuestos #mensual para la próxima semana."_
-      `
+          _Ejemplo: "Necesito preparar declaración mensual del IVA para cliente 1234567890, prioridad alta, #impuestos #mensual para la próxima semana."_
+                `
 
       await this.whatsappRepository.sendMessage({
         to: formattedPhone,
@@ -218,7 +218,6 @@ _Ejemplo: "Necesito preparar declaración mensual del IVA para cliente 123456789
 
   async updateUser(dto: UpdateUserDto, user: User): Promise<IAuthResponse> {
     try {
-      // If email is being updated, check if it's already in use
       if (dto.email && dto.email !== user.email) {
         const existingUser = await this.userRepository.findOne({
           where: { email: dto.email },
@@ -233,11 +232,6 @@ _Ejemplo: "Necesito preparar declaración mensual del IVA para cliente 123456789
             },
           })
         }
-      }
-
-      // If phone is being updated, reset phoneVerified flag
-      if (dto.phone && dto.phone !== user.phone) {
-        user.phoneVerified = false
       }
 
       // Update user properties

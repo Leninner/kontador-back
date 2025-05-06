@@ -221,8 +221,8 @@ export class ColumnRulesService {
           email: card.customer?.email || 'Desconocido',
         },
         accountant: {
-          name: card.customer?.accountant?.name || 'Desconocido',
-          email: card.customer?.accountant?.email || 'Desconocido',
+          name: card.column?.board?.user?.name || 'Desconocido',
+          email: card.column?.board?.user?.email || 'Desconocido',
         },
         oldColumn: {
           name: oldColumnName,

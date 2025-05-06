@@ -453,17 +453,14 @@ export class BoardsService {
       card.labels = updateCardDto.labels
     }
 
-    // Handle moving card to another column
     if (updateCardDto.columnId && updateCardDto.columnId !== card.column.id) {
-      // Store the old column for notification
       const oldColumn = card.column
       const previousColumnId = oldColumn.id
 
-      // Optimized query with select
       const newColumn = await this.columnRepository
         .createQueryBuilder('column')
-        .innerJoin('column.board', 'board')
-        .innerJoin('board.user', 'user')
+        .innerJoinAndSelect('column.board', 'board')
+        .innerJoinAndSelect('board.user', 'user')
         .where('column.id = :columnId', { columnId: updateCardDto.columnId })
         .andWhere('user.id = :userId', { userId: user.id })
         .andWhere('column.deletedAt IS NULL')
@@ -498,13 +495,11 @@ export class BoardsService {
       return card
     }
 
-    // Handle customer linking/unlinking
     if (updateCardDto.customerId !== undefined) {
       const oldCustomerId = card.customer?.id
       const oldCustomerName = card.customer?.name
 
       if (updateCardDto.customerId && updateCardDto.customerId !== oldCustomerId) {
-        // Link new customer
         const customer = await this.customersService.findOne(updateCardDto.customerId)
         card.customer = customer
         changes.customer = { old: oldCustomerId, new: updateCardDto.customerId }
@@ -517,7 +512,6 @@ export class BoardsService {
           `Linked to customer: ${customer.name}`,
         )
       } else if (!updateCardDto.customerId && oldCustomerId) {
-        // Unlink customer
         changes.customer = { old: oldCustomerId, new: null }
         card.customer = null as unknown as Customer
 
